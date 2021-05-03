@@ -1,9 +1,12 @@
+from datetime import datetime
+
+
 def create_transaction_window(sg, table):
     layout = [[sg.Text('Transaction window'), sg.Button('Back To Budget')],
-              [sg.Button('New Transaction')],
+              [sg.Button('New Transaction'), sg.Text('Gross Amount:'), sg.Text(size=(15, 1), key='-Funds-')],
               [sg.Table(table, key='-Trans table-',
-                        headings=['Date', 'Account', 'Category', 'Payee',
-                                  'Description', 'IN/OUT', 'total'])]]
+                        headings=['ID', 'Date', 'Account', 'Category', 'Payee',
+                                  'Description', 'IN/OUT', 'total'], enable_events=True)]]
 
     window = sg.Window('Transaction Window', layout, finalize=True)
 
@@ -11,20 +14,21 @@ def create_transaction_window(sg, table):
 
 
 def create_new_transaction(sg, category_menu):
-    month = 4
-    day = 20
-    year = 2021
+    current_month = datetime.now().month
+    current_day = datetime.now().day
+    current_year = datetime.now().year
 
     layout = [[sg.Column([[sg.Text('Date')],
-                          [sg.Text('Month'), sg.Spin([i for i in range(1, 12)], initial_value=month, k='-Month-')],
-                          [sg.Text('Day'), sg.Spin([i for i in range(1, 31)], initial_value=day, k='-Day-')],
-                          [sg.Text('Year'), sg.Spin([i for i in range(2000, 2200)], initial_value=year, k='-Year-')]]),
+                          [sg.Text('Month'), sg.Input(current_month, k='-Month-', size=(2, 1))],
+                          [sg.Text('Day'), sg.Input(current_day, k='-Day-', size=(2, 1))],
+                          [sg.Text('Year'), sg.Input(current_year, k='-Year-', size=(4, 1))]]),
                sg.Column([[sg.Text('Payee')], [sg.Input(key='-Payee-', s=(20, 5))]]),
                sg.Column([[sg.Text('Notes')], [sg.Input(key='-Notes-', s=(35, 5))]]),
                sg.Column([[sg.Text('IN/OUT')],
                           [sg.Radio('Income', "IN/OUT", default=True, k='-Income-'),
                            sg.Radio('Outcome', "IN/OUT", default=True, k='-Outcome-')],
-                          [sg.Text('Select an an category for outcome')], [sg.OptionMenu(values=category_menu, k='-Trans menu-')]]),
+                          [sg.Text('Select an an category for outcome')],
+                          [sg.OptionMenu(values=category_menu, k='-Trans menu-')]]),
                sg.Column([[sg.Text('Total')], [sg.Input(key='-Trans total-', s=(15, 5))]])],
               [sg.Button('Save'), sg.Button('Exit')]]
 
@@ -33,28 +37,93 @@ def create_new_transaction(sg, category_menu):
     return window
 
 
-def create_new_account_window(sg):
-    layout = [[sg.Text('Type the Account to Add/Delete', font='Any 15')],
-              [sg.Input(key='-Account-')],
-              [sg.Button('Save'), sg.Button('Exit')]]
+def edit_account_window(sg, account_info, menu):
+    layout = [[sg.Column([[sg.Text('Rename Or Move account', font='Any 15')],
+                          [sg.Combo(values=menu, k='-Edit account-', default_value=account_info[0])],
+                          [sg.Button('Update')]]),
+               sg.Column([[sg.Text('Account type', font='Any 15')],
+                          [sg.Combo(values=['Edit'], k='-Move account-', readonly=True, default_value=['Edit'])],
+                          [sg.Button('Delete')]]),
+               sg.Button('Exit')]]
 
-    window = sg.Window('Add/Delete Account', layout, keep_on_top=True, finalize=True)
+    window = sg.Window('Edit/Delete Account', layout, keep_on_top=True, finalize=True)
 
     return window
 
 
-def create_new_category_window(conn, cursor, sg):
-    with conn:
-        cursor.execute("SELECT * FROM account")
-        menu = []
-        for row in cursor.fetchall():
-            menu.append(row[0])
+def create_new_account_window(sg):
+    layout = [[sg.Text('Account Info', font='Any 15')],
+              [sg.Input(key='-New account-')],
+              [sg.Button('Save'), sg.Button('Exit')]]
 
-        layout = [[sg.Text('Type the Category to Add/Delete', font='Any 15')],
-                  [sg.Text('Pick the account to add to'), sg.OptionMenu(values=menu, k='-Account name-')],
-                  [sg.Input(key='-Category-')],
-                  [sg.Button('Save'), sg.Button('Exit')]]
+    window = sg.Window('Add Account', layout, keep_on_top=True, finalize=True)
 
-        window = sg.Window('Add/Delete Category', layout, keep_on_top=True, finalize=True)
+    return window
 
+
+def edit_category_window(sg, category_info, acc_menu, cat_menu):
+    layout = [[sg.Column([[sg.Text('Edit Category Name or Move to delete', font='Any 15')],
+                          [sg.Combo(values=cat_menu, k='-Edit category-',
+                                    default_value=category_info[0])],
+                          [sg.Button('Update')]]),
+               sg.Column([[sg.Text('Move accounts', font='Any 15')],
+                          [sg.Combo(values=acc_menu, k='-Edit account name-', readonly=True,
+                                    default_value=category_info[3])],
+                          [sg.Button('Move Accounts')]]),
+               sg.Column([[sg.Text('Set a monthly budget', font='Any 15')],
+                          [sg.Input(category_info[1], k='-Category budget-', size=(6, 1))],
+                          [sg.Button('Set')]]),
+               sg.Button('Exit')]]
+
+    window = sg.Window('Edit/Delete Category', layout, keep_on_top=True, finalize=True)
+
+    return window
+
+
+def create_new_category_window(sg, menu):
+    layout = [[sg.Text('New Category', font='Any 15')],
+              [sg.Text('Pick the account to add to'), sg.Combo(values=menu, readonly=True, k='-Account name-')],
+              [sg.Input(key='-New category-')],
+              [sg.Button('Save'), sg.Button('Exit')]]
+
+    window = sg.Window('Add Category', layout, keep_on_top=True, finalize=True)
+
+    return window
+
+
+def edit_transaction_window(sg, edit_row, category_menu):
+    row_id, date, payee, notes, total, flow, account, category = edit_row
+    year, month, day = date.split('-')
+    total = str(total)
+    if flow == 'in':
+        income = True
+        outcome = False
+    else:
+        income = False
+        outcome = True
+    layout = [[sg.Column([[sg.Text('Date')],
+                          [sg.Text('Month'), sg.Input(month, k='-Month-', s=(2, 1))],
+                          [sg.Text('Day'), sg.Input(day, k='-Day-', s=(2, 1))],
+                          [sg.Text('Year'), sg.Input(year, k='-Year-', s=(4, 1))]]),
+               sg.Column([[sg.Text('Payee')], [sg.Input(payee, k='-Payee-', s=(20, 5))]]),
+               sg.Column([[sg.Text('Notes')], [sg.Input(notes, k='-Notes-', s=(35, 5))]]),
+               sg.Column([[sg.Text('IN/OUT')],
+                          [sg.Radio('Income', "IN/OUT", default=income, k='-Income-'),
+                           sg.Radio('Outcome', "IN/OUT", default=outcome, k='-Outcome-')],
+                          [sg.Text('Select an an category for outcome')],
+                          [sg.Combo(values=category_menu, k='-Trans menu-', readonly=True, default_value=category)]]),
+               sg.Column([[sg.Text('Total')], [sg.Input(total, key='-Trans total-', s=(15, 5))]])],
+              [sg.Button('Save'), sg.Button('Delete'), sg.Button('Exit')]]
+
+    window = sg.Window('Add New Transaction', layout, keep_on_top=True, finalize=True)
+
+    return window
+
+
+def move_funds_window(sg, menu):
+    layout = [[sg.Combo(values=menu, readonly=True, k='-Category menu-'),
+               sg.Combo(values=('+', '-', '*', '/', '='), readonly=True, k='-Math Ops-'),
+               sg.Input(key='-Move Funds-')], [sg.Button('Update'), sg.Button('Exit')]]
+
+    window = sg.Window('Budget Funds Transaction', layout, keep_on_top=True, finalize=True)
     return window
