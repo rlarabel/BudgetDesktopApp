@@ -60,7 +60,6 @@ def make_category_db(conn, cursor):
         cursor.execute("""CREATE TABLE category (
                     name TEXT PRIMARY KEY,
                     monthly_budget REAL,
-                    monthly_avg REAL,
                     trackaccount TEXT,
                     FOREIGN KEY(trackaccount) REFERENCES account(name)
                         ON UPDATE CASCADE
@@ -84,7 +83,9 @@ def make_account_db(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE account (
                     name TEXT PRIMARY KEY,
-                    total REAL
+                    type TEXT,
+                    total REAL,
+                    goal REAL
         )""")
 
         conn.commit()
@@ -115,9 +116,9 @@ def make_category_menu(conn, cursor):
         return tuple(menu)
 
 
-def make_account_menu(conn, cursor):
+def make_account_menu(conn, cursor, acc_type='budget'):
     with conn:
-        cursor.execute("SELECT * FROM account")
+        cursor.execute("SELECT * FROM account WHERE type=:type", {'type': acc_type})
         menu = []
         for row in cursor.fetchall():
             menu.append(row[0])
@@ -127,9 +128,29 @@ def make_account_menu(conn, cursor):
         return tuple(menu)
 
 
+def make_track_sheet(conn, cursor, track_date):
+    with conn:
+        cursor.execute("SELECT * FROM account WHERE type=:type", {'type': 'track'})
+        table = []
+        for account in cursor.fetchall():
+            # adds account total to table
+            cursor.execute("SELECT * FROM track_categories WHERE account=:name", {'name': account[0]})
+            track_internal = cursor.fetchall()
+            cursor.execute("SELECT * FROM money_flow WHERE account=:name", {'name': account[0]})
+            external_income = cursor.fetchall()
+            account_monthly, _, account_total = get_monthly_total(track_internal, external_income, track_date)
+
+            table.append([account[0], str(account_monthly), str(account_total), str(account[2]), str(account[3])])
+
+        if not table:
+            table = [['', '', '', '', '']]
+
+        return table
+
+
 def make_budget_sheet(conn, cursor, budget_date):
     with conn:
-        cursor.execute("SELECT * FROM account")
+        cursor.execute("SELECT * FROM account WHERE type=:type", {'type': 'budget'})
         table = []
         for account in cursor.fetchall():
             # Finds the account name
@@ -159,7 +180,7 @@ def make_budget_sheet(conn, cursor, budget_date):
                 table.append([category[0], category[1], str(month_budget), month_progress, str(month_spending),
                               str(category_total)])
         if not table:
-            table = [['', '', '']]
+            table = [['', '', '', '', '', '']]
 
         return table
 
@@ -206,10 +227,9 @@ def add_new_category(conn, cursor, data):
         new_row = {
             'name': data['-New category-'],
             'monthly_budget': 0,
-            'monthly_avg': 0,
             'trackaccount': parent_account[0]
         }
-        cursor.execute("INSERT INTO category VALUES (:name, :monthly_budget, :monthly_avg, :trackaccount)", new_row)
+        cursor.execute("INSERT INTO category VALUES (:name, :monthly_budget, :trackaccount)", new_row)
         conn.commit()
 
 
@@ -217,7 +237,7 @@ def set_row_colors(conn, cursor):
     with conn:
         account_color = []
         i = 0
-        cursor.execute("SELECT * FROM account")
+        cursor.execute("SELECT * FROM account WHERE type=:type", {'type': 'budget'})
         for account in cursor.fetchall():
             account_color.append((i, 'yellow', 'black'))
             i += 1
@@ -246,14 +266,14 @@ def add_transaction(conn, cursor, data):
     with conn:
         user_date = str(data['-Year-']) + '-' + str(data['-Month-']) + '-' + str(data['-Day-'])
         user_total = round(float(data['-Trans total-']), 2)
-        if data['-Outcome-']:
+        if data['-Outcome-'] and data['-Trans menu-']:
             cursor.execute("SELECT * FROM category WHERE name=:name", {'name': data['-Trans menu-']})
             category = cursor.fetchone()
             if category:
                 cursor.execute("""INSERT INTO money_flow  VALUES 
                                 (:id, :date, :payee, :notes, :total, :flow, :account, :category)""",
                                {'id': None, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
-                                'total': user_total, 'flow': 'out', 'account': category[3], 'category': category[0]})
+                                'total': user_total, 'flow': 'out', 'account': category[2], 'category': category[0]})
         else:
             cursor.execute("""INSERT INTO money_flow  VALUES 
                                             (:id, :date, :payee, :notes, :total, :flow, :account, :category)""",
@@ -292,15 +312,27 @@ def update_funds(conn, cursor):
         return available_budget, gross_funds
 
 
-def update_category_funds(conn, cursor, update_category):
+def update_category_budget(conn, cursor, row):
     with conn:
         update_row = {
-            'date': update_category[0],
-            'total': update_category[1],
-            'category': update_category[3]
+            'date': row[0],
+            'total': row[1],
+            'category': row[3]
         }
         cursor.execute("""UPDATE track_categories SET total =:total
                                     WHERE category=:category AND date=:date""", update_row)
+        conn.commit()
+
+
+def update_account_track(conn, cursor, row):
+    with conn:
+        update_row = {
+            'date': row[0],
+            'total': row[1],
+            'account': row[2]
+        }
+        cursor.execute("""UPDATE track_categories SET total =:total
+                                    WHERE date=:date AND account=:account""", update_row)
         conn.commit()
 
 
@@ -345,32 +377,32 @@ def delete_category(conn, cursor, transfer_name, old_info):
         if new_info:
             cursor.execute("""UPDATE money_flow SET account=:selected_account, category=:selected_category 
                                     WHERE account=:old_account AND category=:old_category""",
-                           {'selected_category': transfer_name, 'selected_account': new_info[3],
-                            'old_category': old_info[0], 'old_account': old_info[3]})
+                           {'selected_category': transfer_name, 'selected_account': new_info[2],
+                            'old_category': old_info[0], 'old_account': old_info[2]})
             cursor.execute("SELECT * FROM track_categories WHERE account=:old_account AND category=:old_category",
-                           {'old_account': old_info[3], 'old_category': old_info[0]})
+                           {'old_account': old_info[2], 'old_category': old_info[0]})
             # Every transaction is stripped from old and placed in the new category
             for old_transaction in cursor.fetchall():
                 date = old_transaction[0]
                 cursor.execute("""SELECT * FROM track_categories 
                                 WHERE account=:selected_account AND date=:date AND category=:selected_category""",
-                               {'selected_account': new_info[3], 'date': date, 'selected_category': transfer_name})
+                               {'selected_account': new_info[2], 'date': date, 'selected_category': transfer_name})
                 transfer_exist = cursor.fetchone()
                 # an existing transaction will only change in total and the other concurrent will be deleted
                 if transfer_exist:
                     new_total = old_transaction[1] + transfer_exist[1]
                     cursor.execute("""UPDATE track_categories SET total=:total 
                                     WHERE account=:account AND date=:date AND category=:category""",
-                                   {'total': new_total, 'account': new_info[3],
+                                   {'total': new_total, 'account': new_info[2],
                                     'date': date, 'category': transfer_name})
                     cursor.execute("""DELETE FROM track_categories
                                         WHERE account=:account AND date=:date AND category=:category""",
-                                   {'account': old_info[3], 'date': date, 'category': old_info[0]})
+                                   {'account': old_info[2], 'date': date, 'category': old_info[0]})
                 else:
                     cursor.execute("""UPDATE track_categories SET account=:selected_account, category=:selected_category 
                                     WHERE account=:old_account AND date=:date AND category=:category""",
-                                   {'date': date, 'selected_account': new_info[3], 'selected_category': transfer_name,
-                                    'old_account': old_info[3], 'category': old_info[0]})
+                                   {'date': date, 'selected_account': new_info[2], 'selected_category': transfer_name,
+                                    'old_account': old_info[2], 'category': old_info[0]})
             cursor.execute("DELETE FROM category WHERE name=:old_category", {'old_category': old_info[0]})
             conn.commit()
 
@@ -387,7 +419,7 @@ def update_transaction(conn, cursor, data, row_id):
                                 flow=:flow, account=:account, category=:category
                                         WHERE id=:id""",
                                {'id': row_id, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
-                                'total': user_total, 'flow': 'out', 'account': category[3], 'category': category[0]})
+                                'total': user_total, 'flow': 'out', 'account': category[2], 'category': category[0]})
         else:
             cursor.execute("""UPDATE money_flow SET date=:date, payee=:payee, notes=:notes, total=:total, 
                             flow=:flow, account=:account, category=:category

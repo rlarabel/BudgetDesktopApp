@@ -41,9 +41,6 @@ def edit_account_window(sg, account_info, menu):
     layout = [[sg.Column([[sg.Text('Rename Or Move account', font='Any 15')],
                           [sg.Combo(values=menu, k='-Edit account-', default_value=account_info[0])],
                           [sg.Button('Update')]]),
-               sg.Column([[sg.Text('Account type', font='Any 15')],
-                          [sg.Combo(values=['Edit'], k='-Move account-', readonly=True, default_value=['Edit'])],
-                          [sg.Button('Delete')]]),
                sg.Button('Exit')]]
 
     window = sg.Window('Edit/Delete Account', layout, keep_on_top=True, finalize=True)
@@ -52,7 +49,9 @@ def edit_account_window(sg, account_info, menu):
 
 
 def create_new_account_window(sg):
-    layout = [[sg.Text('Account Info', font='Any 15')],
+    layout = [[sg.Text('New Account Info', font='Any 15')],
+              [sg.Text('Account Type:'), sg.Radio('Budget Funds', "Account Type:", default=True, k='-Budget account-'),
+               sg.Radio('Track Funds', "Account Type:", default=False, k='-Track account-')],
               [sg.Input(key='-New account-')],
               [sg.Button('Save'), sg.Button('Exit')]]
 
@@ -121,9 +120,28 @@ def edit_transaction_window(sg, edit_row, category_menu):
 
 
 def move_funds_window(sg, menu):
-    layout = [[sg.Combo(values=menu, readonly=True, k='-Category menu-'),
+    layout = [[sg.Combo(values=menu, readonly=True, k='-Menu-'),
                sg.Combo(values=('+', '-', '*', '/', '='), readonly=True, k='-Math Ops-'),
                sg.Input(key='-Move Funds-')], [sg.Button('Update'), sg.Button('Exit')]]
 
     window = sg.Window('Budget Funds Transaction', layout, keep_on_top=True, finalize=True)
+    return window
+
+
+def edit_track_account_window(sg, account_info, menu):
+    layout = [[sg.Column([[sg.Text('Edit this account Name', font='Any 15')],
+                          [sg.Combo(values=menu, k='-Edit track-',
+                                    default_value=account_info[0])],
+                          [sg.Button('Update')]]),
+               sg.Column([[sg.Text('Set total or goal', font='Any 15')],
+                          [sg.Text('Total:'), sg.Input(account_info[2], k='-Track total-', size=(6, 1))],
+                          [sg.Text('Goal:'), sg.Input(account_info[3], k='-Track goal-', size=(6, 1))],
+                          [sg.Button('Set')]]),
+               sg.Column([[sg.Text('Close and receive total in budget', font='Any 15')],
+                          [sg.Checkbox('Check this box first', default=False, k='-Close track-')],
+                          [sg.Button('Close Account')]]),
+               sg.Button('Exit')]]
+
+    window = sg.Window('Edit/Delete Category', layout, keep_on_top=True, finalize=True)
+
     return window
