@@ -1,10 +1,11 @@
 import PySimpleGUI as sg
-from windows import create_new_account_window, create_new_category_window, create_transaction_window, \
-    create_new_transaction, edit_account_window, edit_category_window, edit_transaction_window, move_funds_window, \
-    edit_track_account_window
-from models import update_funds, update_category_budget, make_budget_sheet, make_category_menu, set_row_colors, \
-    create_funds_income, add_new_category, add_transaction, create_db_tables, make_transaction_sheet, \
-    make_account_menu, delete_account, delete_category, update_transaction, make_track_sheet, update_account_track
+from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window
+from views.budget_windows import move_funds_win, edit_track_acc_win, edit_account_win, edit_category_win, create_account_win, create_category_win
+from models.create_items import make_category_menu, create_funds_income, add_new_category, add_transaction, make_account_menu
+from models.sheets import set_row_colors, make_track_sheet, make_transaction_sheet, make_budget_sheet
+from models.update_items import update_funds, update_category_budget, update_transaction, update_account_track, pretty_print_date, update_month_combo
+from models.make_db import create_db_tables
+from models.delete_items import delete_account, delete_category
 import sqlite3
 from datetime import datetime
 
@@ -25,7 +26,8 @@ def main():
     budget_sheet = make_budget_sheet(conn, c, view_date)
     track_sheet = make_track_sheet(conn, c, view_date)
     menu_def = [['&New', ['Add Account', 'Add Category']],
-                ['&Views', ['&Transactions']]]
+                ['&Views', ['&Transactions']],
+                ['&Help', ['Icon Info']]]
 
     year_combo = []
     for i in range(datetime.now().year, datetime.now().year + 11):
@@ -39,25 +41,29 @@ def main():
     # Layout definition
     budget_layout = [
         [sg.Menu(menu_def, key='-MENU-')],
-        [sg.Text('Budgeting window')],
-        [sg.Combo(values=year_combo, readonly=True, k='-Year-', enable_events=True),
-         sg.Combo(values=month_combo, readonly=True, k='-Month-', enable_events=True),
-         sg.Text(size=(7, 1), key='View date')],
-        [sg.Button('Budget Funds'), sg.Button('Track Funds'), sg.Text('Funds Available:'),
-         sg.Text(size=(15, 1), key=BUDGET)],
-        [sg.Table(budget_sheet, key='-Table-', auto_size_columns=True,
-                  headings=['Name', 'Set Budget', 'This Months Budget', 'Budget Progress', 'Months spending', 'Total Available'],
-                  row_colors=set_row_colors(conn, c), enable_events=True)],
-        [sg.Table(track_sheet, key='-Track table-', auto_size_columns=True,
-                  headings=['Name', 'Monthly money allocated', 'Total allocated', 'Total', 'Goal'], enable_events=True)]]
+        [sg.Text('Account Window', justification='center', size=(67, 1), font='Any 15')],
+        [sg.Text(size=(55, 1), key='View date', font='Any 11'),
+         sg.Combo(values=year_combo, readonly=True, k='-Year-', enable_events=True, pad=((160, 1), (1, 1))),
+         sg.Combo(values=month_combo, readonly=True, k='-Month-', enable_events=True)],
+        [sg.Button('Budget Funds'), sg.Button('Track Funds'),
+         sg.Text('Funds Available:', justification='right', s=(48, 1), font='Any 11'),
+         sg.Text(size=(13, 1), key=BUDGET, font='Any 11')],
+        [sg.Table(budget_sheet, key='-Table-', auto_size_columns=False,
+                  headings=['Name', 'Budget Goal', "Monthly Budget", 'Budget Progress', 'Monthly spending',
+                            'Total Available'],
+                  row_colors=set_row_colors(conn, c), enable_events=True,
+                  col_widths=[20, 12, 13, 13, 13, 12], font='Any 11', num_rows=13)],
+        [sg.Table(track_sheet, key='-Track table-', auto_size_columns=False,
+                  headings=['Name', 'Monthly Funds', 'Total Funds', 'Total', 'Goal'],
+                  enable_events=True, col_widths=[20, 16, 16, 16, 15], font='Any 11', num_rows=8)]]
 
     # Create windows
-    budget_win = sg.Window('Rat Trap - Money Tracker', budget_layout, finalize=True)
+    budget_win = sg.Window('Rat Trap - Money Tracker', budget_layout, finalize=True, resizable=True, icon='images/rat.ico')
     transaction_win_active = False
     
     # Updates the window with default Values
     budget_win[BUDGET].update(budget)
-    budget_win['View date'].update(view_date)
+    budget_win['View date'].update(pretty_print_date(view_date, all_months))
 
     # Event Loop
     while True:
@@ -67,36 +73,50 @@ def main():
         if not event:
             break
         if event == 'Add Account':
-            event, values = create_new_account_window(sg).read(close=True)
-
+            budget_win.disable()
+            event, values = create_account_win(sg).read(close=True)
             if event == 'Save':
-                c.execute("SELECT * FROM account WHERE name=:name", {'name': values['-New account-']})
+                create_acc = values['-New account-']
+                c.execute("SELECT * FROM account WHERE name=:name", {'name': create_acc})
                 existing_acc = c.fetchone()
                 if values['-Budget account-']:
                     account_type = 'budget'
                 else:
                     account_type = 'track'
-                if not existing_acc and values['-New account-']:
+                if not existing_acc and create_acc:
                     new_row = {
-                        'name': values['-New account-'],
+                        'name': create_acc,
                         'type': account_type,
                         'total': 0,
                         'goal': 0
                     }
                     c.execute("INSERT INTO account VALUES (:name, :type, :total, :goal)", new_row)
                     conn.commit()
+                    sg.popup(f'Successfully created {create_acc}')
+                elif existing_acc:
+                    sg.popup(f'There is already an existing {create_acc}')
+                elif not create_acc:
+                    sg.popup(f'There is missing info needed to create the account')
+
         elif event == 'Add Category':
-            event, values = create_new_category_window(sg, account_menu).read(close=True)
+            budget_win.disable()
+            event, values = create_category_win(sg, account_menu).read(close=True)
             if event == 'Save':
-                c.execute("SELECT * FROM category WHERE name=:name", {'name': values['-New category-']})
+                create_cat = values['-New category-']
+                c.execute("SELECT * FROM category WHERE name=:name", {'name': create_cat})
                 existing_cat = c.fetchone()
-                if not existing_cat and values['-New category-'] and values['-Account name-']:
+                if not existing_cat and create_cat and values['-Account name-']:
                     add_new_category(conn, c, values)
+                    sg.popup(f'Successfully created {create_cat}')
+                elif existing_cat:
+                    sg.popup(f'There is already an existing {create_cat}')
+                elif not create_cat or not values['-Account name-']:
+                    sg.popup(f'There is missing info needed to open a category')
 
         elif event in ('-Year-', '-Month-'):
             set_year, month_int = view_date.split('-')
             if values['-Month-']:
-                for i, month in enumerate(month_combo, 1):
+                for i, month in enumerate(all_months, 1):
                     if values['-Month-'] == month:
                         month_int = str(i)
             if values['-Year-']:
@@ -109,46 +129,72 @@ def main():
             transaction_sheet = make_transaction_sheet(conn, c)
             transaction_win = create_transaction_window(sg, transaction_sheet)
             transaction_win[FUNDS].update(funds)
+            keys_to_validate = ['-Year-', '-Month-', '-Day-', '-Trans total-']
 
             while transaction_win_active:
                 event, values = transaction_win.Read()
                 if not event:
                     exit()
-                if event == 'Back To Budget':
+                if event == 'Back To Accounts':
                     transaction_win.Close()
                     transaction_win_active = False
                     budget_win.UnHide()
                 elif event == 'New Transaction':
+                    transaction_win.disable()
                     event, values = create_new_transaction(sg, category_menu).read(close=True)
-                    if event in (None, 'Exit'):
-                        pass
                     if event == 'Save':
-                        add_transaction(conn, c, values)
+                        set_transaction = True
+                        for validate in keys_to_validate:
+                            if not values[validate] or not (values['-Trans menu-'] or values['-Income-']):
+                                set_transaction = False
+                        if set_transaction:
+                            year = values['-Year-']
+                            month = values['-Month-']
+                            day = values['-Day-']
+                            add_transaction(conn, c, values)
+                            sg.popup(f"New transaction for {year}-{month}-{day}")
+                        else:
+                            sg.popup('Missing info: unable to update the transaction')
                 elif event == '-Trans table-':
                     row_int = values['-Trans table-'][0]
                     trans_id = transaction_sheet[row_int][0]
                     c.execute("SELECT * FROM money_flow WHERE id=:id", {'id': trans_id})
-                    account_row = c.fetchone()
-                    if account_row:
-                        event, values = edit_transaction_window(sg, account_row, category_menu).read(close=True)
+                    transaction_row = c.fetchone()
+                    if transaction_row:
+                        transaction_win.disable()
+                        event, values = edit_transaction_window(sg, transaction_row, category_menu).read(close=True)
                         if event == 'Save':
-                            update_transaction(conn, c, values, trans_id)
+                            set_transaction = True
+
+                            for validate in keys_to_validate:
+                                if not values[validate] or not (values['-Trans menu-'] or values['-Income-']):
+                                    set_transaction = False
+
+                            if set_transaction:                               # This is where the transaction is updated
+                                update_transaction(conn, c, values, trans_id)
+                                sg.popup('Transaction was updated')
+                            else:
+                                sg.popup('Missing info: unable to update the transaction')
                         elif event == 'Delete':
                             c.execute("DELETE FROM money_flow WHERE id=:id", {'id': trans_id})
-                        conn.commit()
-                if event not in (None, 'Back To Budget'):
+                            conn.commit()
+                            sg.popup('Transaction was delete')
+
+                if transaction_win_active:
+                    transaction_win.enable()
+                    transaction_win.BringToFront()
                     budget, funds = update_funds(conn, c)
                     transaction_win[FUNDS].update(funds)
                     transaction_sheet = make_transaction_sheet(conn, c)
                     transaction_win['-Trans table-'].update(transaction_sheet)
 
         elif event == 'Budget Funds':
-            event, values = move_funds_window(sg, category_menu).read(close=True)
-            if event in (None, 'Exit'):
-                pass
+            budget_win.disable()
+            event, values = move_funds_win(sg, category_menu).read(close=True)
             if event == 'Update':
                 if values['-Menu-'] not in (None, 'No Categories Yet') and values['-Move Funds-']:
                     math_operator = values['-Math Ops-']
+                    category_name = values['-Menu-']
                     move_funds, selected_account = 0, 0
 
                     try:
@@ -158,24 +204,25 @@ def main():
 
                     with conn:
                         c.execute("SELECT * FROM track_categories WHERE category=:category AND date=:date",
-                                  {'category': values['-Menu-'], 'date': view_date})
+                                  {'category': category_name, 'date': view_date})
                         category_transaction = c.fetchone()
                         if not category_transaction:
                             c.execute("SELECT * FROM category WHERE name=:name",
-                                      {'name': values['-Menu-']})
+                                      {'name': category_name})
                             category_info = c.fetchone()
                             c.execute("""INSERT INTO track_categories VALUES (:date, :total, :account, :category)""",
                                       {'date': view_date, 'total': 0, 'account': category_info[2],
-                                       'category': category_info[0]})
+                                       'category': category_name})
                             conn.commit()
                         # Adds a new transaction to a category unless same date
 
                         c.execute("SELECT * FROM track_categories WHERE category=:category AND date=:date",
-                                  {'category': values['-Menu-'], 'date': view_date})
+                                  {'category': category_name, 'date': view_date})
                         selected_account = c.fetchone()
 
                     if selected_account:
                         selected_account = list(selected_account)
+                        move_flag = True
 
                         if math_operator == '-':
                             selected_account[1] -= move_funds
@@ -196,10 +243,17 @@ def main():
                         elif math_operator == '=':
                             selected_account[1] = move_funds
                             update_category_budget(conn, c, selected_account)
+                        else:
+                            move_flag = False
+
+                        if move_flag:
+                            sg.popup(f'Successful\n{category_name} {math_operator} {move_funds} ')
+                        else:
+                            sg.popup(f'Unsuccessful transfer')
+
         elif event == 'Track Funds':
-            event, values = move_funds_window(sg, track_menu).read(close=True)
-            if event in (None, 'Exit'):
-                pass
+            budget_win.disable()
+            event, values = move_funds_win(sg, track_menu).read(close=True)
             if event == 'Update':
                 if values['-Menu-'] not in (None, 'No Account Yet') and values['-Move Funds-']:
                     math_operator = values['-Math Ops-']
@@ -229,7 +283,7 @@ def main():
 
                     if selected_account:
                         selected_account = list(selected_account)
-
+                        move_flag = True
                         if math_operator == '-':
                             selected_account[1] -= move_funds
                             update_account_track(conn, c, selected_account)
@@ -249,6 +303,14 @@ def main():
                         elif math_operator == '=':
                             selected_account[1] = move_funds
                             update_account_track(conn, c, selected_account)
+                        else:
+                            move_flag = False
+
+                        if move_flag:
+                            sg.popup(f'Successful\n{account_name} {math_operator} {move_funds} ')
+                        else:
+                            sg.popup(f'Unsuccessful transfer')
+
         elif event == '-Table-':
             row_int = values['-Table-'][0]
             row = budget_sheet[row_int]
@@ -256,26 +318,26 @@ def main():
             c.execute("SELECT * FROM account WHERE name=:name", {'name': row_name})
             account_row = c.fetchone()
             if account_row:
-                event, values = edit_account_window(sg, account_row, account_menu).read(close=True)
-                if event in (None, 'Exit'):
-                    pass
-                else:
-                    new_acc_name = values['-Edit account-']
-                    if event == 'Update' and new_acc_name not in (None, row_name):
-                        if new_acc_name not in account_menu or new_acc_name not in track_menu:
-                            c.execute("UPDATE account SET name=:new_account WHERE name=:old_account",
-                                      {'new_account': values['-Edit account-'], 'old_account': row_name})
-                            conn.commit()
-                        elif new_acc_name in account_menu:
-                            delete_account(conn, c, values['-Edit account-'], row_name)
-                        elif new_acc_name in track_menu:
-                            sg.popup('This name is being used as a tracking account')
-
+                budget_win.disable()
+                event, values = edit_account_win(sg, account_row, account_menu).read(close=True)
+                new_acc_name = values['-Edit account-']
+                if event == 'Update' and new_acc_name not in (None, row_name):
+                    if new_acc_name not in account_menu or new_acc_name not in track_menu:
+                        c.execute("UPDATE account SET name=:new_account WHERE name=:old_account",
+                                  {'new_account': new_acc_name, 'old_account': row_name})
+                        conn.commit()
+                        sg.popup(f'{row_name} account name was changed to {new_acc_name}')
+                    elif new_acc_name in account_menu:
+                        delete_account(conn, c, new_acc_name, row_name)
+                        sg.popup(f'{row_name} was delete\nfunds were moved to account {new_acc_name}')
+                    elif new_acc_name in track_menu:
+                        sg.popup('This name is being used as a tracking account')
             else:
                 c.execute("SELECT * FROM category WHERE name=:name", {'name': row_name})
                 category_row = c.fetchone()
                 if category_row:
-                    event, values = edit_category_window(sg, category_row, account_menu, category_menu).read(close=True)
+                    budget_win.disable()
+                    event, values = edit_category_win(sg, category_row, account_menu, category_menu).read(close=True)
                     old_acc = category_row[2]
                     if event == 'Set':
                         new_budget = float(values['-Category budget-'])
@@ -284,6 +346,7 @@ def main():
                                                 WHERE name=:old_category AND trackaccount=:old_account""",
                                       {'new_budget': new_budget, 'old_account': old_acc, 'old_category': row_name})
                             conn.commit()
+                            sg.popup(f'Budget was set to {new_budget}')
                     elif event == 'Move Accounts':
                         new_acc = values['-Edit account name-']
                         if new_acc != old_acc:
@@ -297,6 +360,7 @@ def main():
                                                     WHERE category=:old_category AND account=:old_account""",
                                       {'new_account': new_acc, 'old_account': old_acc, 'old_category': row_name})
                             conn.commit()
+                            sg.popup(f'{row_name} was moved from {old_acc} to {new_acc}')
                     elif event == 'Update':
                         new_cat = values['-Edit category-']
                         if new_cat not in (None, row_name):
@@ -311,8 +375,10 @@ def main():
                                                         WHERE category=:old_category AND account=:old_account""",
                                           {'old_account': old_acc, 'new_category': new_cat, 'old_category': row_name})
                                 conn.commit()
+                                sg.popup(f'{row_name} category name was changed to {new_cat}')
                             elif new_cat in category_menu:
-                                delete_category(conn, c, values['-Edit category-'], category_row)
+                                delete_category(conn, c, new_cat, category_row)
+                                sg.popup(f'{row_name} was delete\nfunds were moved to account {new_cat}')
         elif event == '-Track table-':
             row_int = values['-Track table-'][0]
             row = track_sheet[row_int]
@@ -320,7 +386,8 @@ def main():
             c.execute("SELECT * FROM account WHERE name=:name", {'name': row_name})
             account_row = c.fetchone()
             if account_row:
-                event, values = edit_track_account_window(sg, account_row, track_menu).read(close=True)
+                budget_win.disable()
+                event, values = edit_track_acc_win(sg, account_row, track_menu).read(close=True)
                 if event == 'Update':
                     new_acc_name = values['-Edit track-']
                     if new_acc_name not in (None, row_name):
@@ -350,7 +417,7 @@ def main():
                                   {'goal': account_goal, 'account': row_name, })
                         conn.commit()
 
-                    sg.popup(f'{row_name} updated')
+                    sg.popup(f'{row_name} updated the goals/total')
                 elif event == 'Close Account':
                     if values['-Close track-']:
                         c.execute("""SELECT * FROM track_categories WHERE account=:account""",
@@ -362,6 +429,7 @@ def main():
                             user_total += record[1]
 
                         return_total = account_row[2] - user_total
+
                         new_transaction = {
                             '-Year-': datetime.now().year,
                             '-Month-': datetime.now().month,
@@ -378,17 +446,24 @@ def main():
                         c.execute("""DELETE FROM account WHERE name=:account""",
                                   {'account': row_name})
                         conn.commit()
-                        add_transaction(conn, c, new_transaction)
-                        sg.popup(f'{row_name} account has been closed')
+                        if return_total != 0:
+                            add_transaction(conn, c, new_transaction)
+                        sg.popup(f'{row_name} account has been closed\ncheck transaction table for the account closure')
+        elif event == 'Icon Info':
+            sg.popup('Icon made by dave-gandy from www.flaticon.com\n\nURL: https://www.flaticon.com/autores/dave-gandy')
+
+        budget_win.enable()
+        budget_win.BringToFront()
         category_menu = make_category_menu(conn, c)
         account_menu = make_account_menu(conn, c)
         track_menu = make_account_menu(conn, c, 'track')
-        budget_win['View date'].update(view_date)
+        budget_win['View date'].update(pretty_print_date(view_date, all_months))
         budget, funds = update_funds(conn, c)
         budget_sheet = make_budget_sheet(conn, c, view_date)
         budget_win['-Table-'].update(budget_sheet, row_colors=set_row_colors(conn, c))
         track_sheet = make_track_sheet(conn, c, view_date)
         budget_win['-Track table-'].update(track_sheet)
+        budget_win['-Month-'].update(values=update_month_combo(all_months, view_date))
         budget_win[BUDGET].update(budget)
 
     budget_win.close()
