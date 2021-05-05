@@ -8,13 +8,22 @@ from models.make_db import create_db_tables
 from models.delete_items import delete_account, delete_category
 import sqlite3
 from datetime import datetime
+import os
 
 BUDGET = '-Budget-'
 FUNDS = '-Funds-'
 
 
 def main():
-    conn = sqlite3.connect('app.db')
+    user_path = os.environ['USERPROFILE']
+    app_data_path = user_path + '/AppData/Local/RatTrap'
+    app_path = app_data_path + '/app.db'
+    try:
+        conn = sqlite3.connect(app_path)
+    except sqlite3.OperationalError:
+        os.mkdir(app_data_path)
+        conn = sqlite3.connect(app_path)
+
     conn.execute("PRAGMA foreign_keys = ON")
     c = conn.cursor()
     create_db_tables(conn, c)
