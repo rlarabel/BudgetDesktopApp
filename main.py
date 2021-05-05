@@ -450,7 +450,8 @@ def main():
                             add_transaction(conn, c, new_transaction)
                         sg.popup(f'{row_name} account has been closed\ncheck transaction table for the account closure')
         elif event == 'Icon Info':
-            sg.popup('Icon made by dave-gandy from www.flaticon.com\n\nURL: https://www.flaticon.com/autores/dave-gandy')
+            sg.popup("""Icon made by freepik from www.flaticon.com\n
+                        Author URL: https://www.flaticon.com/authors/freepik""")
 
         budget_win.enable()
         budget_win.BringToFront()
