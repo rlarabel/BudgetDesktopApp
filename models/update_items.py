@@ -27,7 +27,7 @@ def update_funds(conn, cursor):
                                             WHERE id=:id""", update_row)
         conn.commit()
 
-        return available_budget, gross_funds
+        return round(available_budget, 2), round(gross_funds, 2)
 
 
 def update_category_budget(conn, cursor, row):

@@ -1,4 +1,3 @@
-from datetime import datetime
 from models.update_items import update_funds
 
 

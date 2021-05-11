@@ -1,19 +1,17 @@
 from datetime import datetime
 
 
-ICON = 'images/rat.ico'
-
-
-def create_transaction_window(sg, table):
+def create_transaction_window(sg, table, visible_columns):
     layout = [[sg.Text('Transaction Window', justification='center', font='Any 15', size=(44, 1))],
               [sg.Text('Gross Amount:'), sg.Text(size=(15, 1), key='-Funds-'),
                sg.Button('New Transaction', pad=((150, 1), (1, 1)))],
               [sg.Table(table, key='-Trans table-',
                         headings=['ID', 'Date', 'Account', 'Category', 'Payee',
-                                  'Description', 'IN/OUT', 'total'], enable_events=True)],
+                                  'Description', 'IN/OUT', 'total'], enable_events=True,
+                        visible_column_map=visible_columns)],
               [sg.Button('Back To Accounts', button_color='grey')]]
 
-    window = sg.Window('Transaction Window', layout, finalize=True, icon=ICON)
+    window = sg.Window('Transaction Window', layout, finalize=True)
 
     return window
 
@@ -37,7 +35,7 @@ def create_new_transaction(sg, category_menu):
                sg.Column([[sg.Text('Total')], [sg.Input(key='-Trans total-', s=(15, 5))]])],
               [sg.Button('Save'), sg.Button('Exit')]]
 
-    window = sg.Window('Add New Transaction', layout, keep_on_top=True, finalize=True, icon=ICON)
+    window = sg.Window('Add New Transaction', layout, keep_on_top=True, finalize=True)
 
     return window
 
@@ -66,6 +64,6 @@ def edit_transaction_window(sg, edit_row, category_menu):
                sg.Column([[sg.Text('Total')], [sg.Input(total, key='-Trans total-', s=(15, 5))]])],
               [sg.Button('Save'), sg.Button('Delete'), sg.Button('Exit')]]
 
-    window = sg.Window('Add New Transaction', layout, keep_on_top=True, finalize=True, icon=ICON)
+    window = sg.Window('Add New Transaction', layout, keep_on_top=True, finalize=True)
 
     return window

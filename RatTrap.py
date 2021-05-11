@@ -2,11 +2,12 @@ import PySimpleGUI as sg
 from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window
 from views.budget_windows import move_funds_win, edit_track_acc_win, edit_account_win, edit_category_win, create_account_win, create_category_win
 from models.create_items import make_category_menu, create_funds_income, add_new_category, add_transaction, make_account_menu
-from models.sheets import set_row_colors, make_track_sheet, make_transaction_sheet, make_budget_sheet
+from models.sheets import set_row_colors, make_track_sheet, make_transaction_sheet, make_budget_sheet, set_track_row_colors
 from models.update_items import update_funds, update_category_budget, update_transaction, update_account_track, pretty_print_date, update_month_combo
 from models.make_db import create_db_tables
 from models.delete_items import delete_account, delete_category
 import sqlite3
+
 from datetime import datetime
 import os
 
@@ -15,6 +16,15 @@ FUNDS = '-Funds-'
 
 
 def main():
+    year_combo = []
+    for i in range(datetime.now().year, datetime.now().year + 11):
+        year_combo.append(str(i))
+
+    all_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    month_combo = []
+    for i in range(datetime.now().month - 1, 12):
+        month_combo.append(all_months[i])
+
     user_path = os.environ['USERPROFILE']
     app_data_path = user_path + '/AppData/Local/RatTrap'
     app_path = app_data_path + '/app.db'
@@ -27,25 +37,16 @@ def main():
     conn.execute("PRAGMA foreign_keys = ON")
     c = conn.cursor()
     create_db_tables(conn, c)
+    visible_columns = [False, True, True, True, True, True, True, True]
     view_date = str(datetime.now().year) + '-' + str(datetime.now().month)
     budget, funds = create_funds_income(conn, c)
     category_menu = make_category_menu(conn, c)
     account_menu = make_account_menu(conn, c)
     track_menu = make_account_menu(conn, c, 'track')
     budget_sheet = make_budget_sheet(conn, c, view_date)
-    track_sheet = make_track_sheet(conn, c, view_date)
+    track_sheet = make_track_sheet(conn, c, view_date, all_months)
     menu_def = [['&New', ['Add Account', 'Add Category']],
-                ['&Views', ['&Transactions']],
-                ['&Help', ['Icon Info']]]
-
-    year_combo = []
-    for i in range(datetime.now().year, datetime.now().year + 11):
-        year_combo.append(str(i))
-
-    all_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    month_combo = []
-    for i in range(datetime.now().month-1, 12):
-        month_combo.append(all_months[i])
+                ['&Views', ['&Transactions']]]
 
     # Layout definition
     budget_layout = [
@@ -63,11 +64,12 @@ def main():
                   row_colors=set_row_colors(conn, c), enable_events=True,
                   col_widths=[20, 12, 13, 13, 13, 12], font='Any 11', num_rows=13)],
         [sg.Table(track_sheet, key='-Track table-', auto_size_columns=False,
-                  headings=['Name', 'Monthly Funds', 'Total Funds', 'Total', 'Goal'],
-                  enable_events=True, col_widths=[20, 16, 16, 16, 15], font='Any 11', num_rows=8)]]
+                  headings=['Account Name', 'Monthly Funds', 'Total Funds', 'Total', 'To Reach Goal', 'By Date'],
+                  enable_events=True, col_widths=[20, 16, 13, 10, 13, 11], font='Any 11', num_rows=8,
+                  row_colors=set_track_row_colors(conn, c))]]
 
     # Create windows
-    budget_win = sg.Window('Rat Trap - Money Tracker', budget_layout, finalize=True, resizable=True, icon='images/rat.ico')
+    budget_win = sg.Window('Rat Trap - Money Tracker', budget_layout, finalize=True, resizable=True)
     transaction_win_active = False
     
     # Updates the window with default Values
@@ -136,7 +138,7 @@ def main():
             transaction_win_active = True
             budget_win.Hide()
             transaction_sheet = make_transaction_sheet(conn, c)
-            transaction_win = create_transaction_window(sg, transaction_sheet)
+            transaction_win = create_transaction_window(sg, transaction_sheet, visible_columns)
             transaction_win[FUNDS].update(funds)
             keys_to_validate = ['-Year-', '-Month-', '-Day-', '-Trans total-']
 
@@ -179,7 +181,7 @@ def main():
                                 if not values[validate] or not (values['-Trans menu-'] or values['-Income-']):
                                     set_transaction = False
 
-                            if set_transaction:                               # This is where the transaction is updated
+                            if set_transaction:      # This is where the transaction is updated
                                 update_transaction(conn, c, values, trans_id)
                                 sg.popup('Transaction was updated')
                             else:
@@ -329,9 +331,9 @@ def main():
             if account_row:
                 budget_win.disable()
                 event, values = edit_account_win(sg, account_row, account_menu).read(close=True)
-                new_acc_name = values['-Edit account-']
-                if event == 'Update' and new_acc_name not in (None, row_name):
-                    if new_acc_name not in account_menu or new_acc_name not in track_menu:
+                if event == 'Update' and values['-Edit account-'] not in (None, row_name):
+                    new_acc_name = values['-Edit account-']
+                    if new_acc_name not in account_menu and new_acc_name not in track_menu:
                         c.execute("UPDATE account SET name=:new_account WHERE name=:old_account",
                                   {'new_account': new_acc_name, 'old_account': row_name})
                         conn.commit()
@@ -349,13 +351,23 @@ def main():
                     event, values = edit_category_win(sg, category_row, account_menu, category_menu).read(close=True)
                     old_acc = category_row[2]
                     if event == 'Set':
-                        new_budget = float(values['-Category budget-'])
-                        if new_budget > 0:
+                        if values['-Category budget-'] in ('-', '0'):
                             c.execute("""UPDATE category SET monthly_budget=:new_budget
-                                                WHERE name=:old_category AND trackaccount=:old_account""",
-                                      {'new_budget': new_budget, 'old_account': old_acc, 'old_category': row_name})
+                                                        WHERE name=:old_category AND trackaccount=:old_account""",
+                                      {'new_budget': 0, 'old_account': old_acc, 'old_category': row_name})
                             conn.commit()
-                            sg.popup(f'Budget was set to {new_budget}')
+                            sg.popup(f'Budget was reset')
+                        try:
+                            new_budget = float(values['-Category budget-'])
+                        except ValueError:
+                            sg.popup('Could not convert to a decimal number')
+                        else:
+                            if new_budget > 0:
+                                c.execute("""UPDATE category SET monthly_budget=:new_budget
+                                                    WHERE name=:old_category AND trackaccount=:old_account""",
+                                          {'new_budget': new_budget, 'old_account': old_acc, 'old_category': row_name})
+                                conn.commit()
+                                sg.popup(f'Budget was set to {new_budget}')
                     elif event == 'Move Accounts':
                         new_acc = values['-Edit account name-']
                         if new_acc != old_acc:
@@ -392,7 +404,7 @@ def main():
             row_int = values['-Track table-'][0]
             row = track_sheet[row_int]
             row_name = row[0]
-            c.execute("SELECT * FROM account WHERE name=:name", {'name': row_name})
+            c.execute("SELECT * FROM account WHERE name=:name AND type=:type", {'name': row_name, 'type': 'track'})
             account_row = c.fetchone()
             if account_row:
                 budget_win.disable()
@@ -410,23 +422,73 @@ def main():
                         else:
                             sg.popup(f'Edit name: {new_acc_name} did not update')
 
-                elif event == 'Set':
+                elif event == 'Set Total':
                     account_total = values['-Track total-']
-                    account_goal = values['-Track goal-']
                     # Updates the account total
-                    if float(account_total) > 0:
+                    if account_total in ('0', '-'):
+                        c.execute("""UPDATE account SET total=:total
+                                                        WHERE name=:account""",
+                                  {'total': 0, 'account': row_name})
+                        conn.commit()
+                        sg.popup(f'{row_name} total was reset')
+                    try:
+                        account_total = round(float(account_total), 2)
+                    except ValueError:
+                        sg.popup('Could not convert this into a decimal number')
+                    else:
                         c.execute("""UPDATE account SET total=:total
                                                     WHERE name=:account""",
-                                  {'total': account_total, 'account': row_name, })
+                                  {'total': account_total, 'account': row_name})
                         conn.commit()
+                        sg.popup(f'{row_name} total was updated to {str(account_total)}')
                     # Updates the account goal
-                    if float(account_goal) > 0:
+                elif event == 'Set Goal':
+                    account_goal = values['-Track goal-']
+                    if values['-Goal year-'] == '-' or values['-Goal month-'] == '-':
+                        c.execute("""UPDATE account SET goal_date=:goal_date
+                                                        WHERE name=:account""",
+                                  {'goal_date': None, 'account': row_name})
+                        conn.commit()
+                        sg.popup('Goal date reset ')
+                    else:
+                        try:
+                            goal_year = int(values['-Goal year-'])
+                            goal_month = int(values['-Goal month-'])
+                            goal_day = 1
+                        except ValueError:
+                            sg.popup('Enter integer numbers for the date')
+                        else:
+                            try:
+                                goal_date = datetime(goal_year, goal_month, goal_day).date()
+                                month_delta = goal_month - datetime.now().month
+                            except ValueError:
+                                sg.popup('Sorry that is not a valid date')
+                            else:
+                                if goal_date >= datetime.now().date() and month_delta >= 1:
+                                    c.execute("""UPDATE account SET goal_date=:goal_date WHERE name=:account""",
+                                              {'goal_date': goal_date, 'account': row_name})
+                                    conn.commit()
+                                    sg.popup(f'{row_name} goal date was updated to {goal_date}')
+                                else:
+                                    sg.popup('Can not set goal for old or a current month')
+                    if account_goal in ('0', '-'):
                         c.execute("""UPDATE account SET goal=:goal
                                                     WHERE name=:account""",
-                                  {'goal': account_goal, 'account': row_name, })
+                                  {'goal': 0, 'account': row_name})
                         conn.commit()
-
-                    sg.popup(f'{row_name} updated the goals/total')
+                        sg.popup('The goal amount was reset')
+                    else:
+                        try:
+                            account_goal = float(account_goal)
+                        except ValueError:
+                            sg.popup('Could not convert this into a decimal number')
+                        else:
+                            if account_goal > 0:
+                                c.execute("""UPDATE account SET goal=:goal
+                                                            WHERE name=:account""",
+                                          {'goal': account_goal, 'account': row_name})
+                                conn.commit()
+                                sg.popup(f'{row_name} goal total was updated to {str(account_goal)}')
                 elif event == 'Close Account':
                     if values['-Close track-']:
                         c.execute("""SELECT * FROM track_categories WHERE account=:account""",
@@ -458,9 +520,8 @@ def main():
                         if return_total != 0:
                             add_transaction(conn, c, new_transaction)
                         sg.popup(f'{row_name} account has been closed\ncheck transaction table for the account closure')
-        elif event == 'Icon Info':
-            sg.popup("""Icon made by freepik from www.flaticon.com\n
-                        Author URL: https://www.flaticon.com/authors/freepik""")
+            else:
+                sg.popup('To edit a budget account use the other table')
 
         budget_win.enable()
         budget_win.BringToFront()
@@ -471,8 +532,8 @@ def main():
         budget, funds = update_funds(conn, c)
         budget_sheet = make_budget_sheet(conn, c, view_date)
         budget_win['-Table-'].update(budget_sheet, row_colors=set_row_colors(conn, c))
-        track_sheet = make_track_sheet(conn, c, view_date)
-        budget_win['-Track table-'].update(track_sheet)
+        track_sheet = make_track_sheet(conn, c, view_date, all_months)
+        budget_win['-Track table-'].update(track_sheet, row_colors=set_track_row_colors(conn, c))
         budget_win['-Month-'].update(values=update_month_combo(all_months, view_date))
         budget_win[BUDGET].update(budget)
 

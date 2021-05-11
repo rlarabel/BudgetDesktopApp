@@ -81,7 +81,8 @@ def make_account_db(conn, cursor):
                     name TEXT PRIMARY KEY,
                     type TEXT,
                     total REAL,
-                    goal REAL
+                    goal REAL,
+                    goal_date TEXT
         )""")
 
         conn.commit()
