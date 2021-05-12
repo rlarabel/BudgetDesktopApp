@@ -99,9 +99,10 @@ def main():
                         'name': create_acc,
                         'type': account_type,
                         'total': 0,
-                        'goal': 0
+                        'goal': 0,
+                        'goal_date': None
                     }
-                    c.execute("INSERT INTO account VALUES (:name, :type, :total, :goal)", new_row)
+                    c.execute("INSERT INTO account VALUES (:name, :type, :total, :goal, :goal_date)", new_row)
                     conn.commit()
                     sg.popup(f'Successfully created {create_acc}')
                 elif existing_acc:
