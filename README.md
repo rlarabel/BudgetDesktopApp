@@ -29,6 +29,7 @@ is to track and set up budgets for the user's account(s) on a monthly basis.
 - Click 'New' on the menu bar, then click on add category.
 - Select the corresponding budgeting account for the category.
 - Then use a unique name to create the category
+- Main purpose is to categorize the money spent out of an account into realistic and helpful sub feilds (e.g Groceries)
 ### Move Funds to an Account
 #### Tracking Funds
 - Using the 'Track Funds' button
@@ -82,3 +83,4 @@ is to track and set up budgets for the user's account(s) on a monthly basis.
 - Tracking accounts should display the total amount that the user funded to that account
 ## Known Error
 - The goal tracker is not completely functional
+- In the Transaction Window, the transaction table is not being sorted by descending dates correctly
