@@ -145,9 +145,7 @@ def main():
 
             while transaction_win_active:
                 event, values = transaction_win.Read()
-                if not event:
-                    exit()
-                if event == 'Back To Accounts':
+                if event in ('Back To Accounts', None):
                     transaction_win.Close()
                     transaction_win_active = False
                     budget_win.UnHide()
