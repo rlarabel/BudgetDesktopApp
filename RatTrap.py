@@ -16,27 +16,37 @@ FUNDS = '-Funds-'
 
 
 def main():
+    # TODO: Any behind? 11 years in advanced
     year_combo = []
     for i in range(datetime.now().year, datetime.now().year + 11):
         year_combo.append(str(i))
-
+    
+    # TODO: Use all months
     all_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     month_combo = []
     for i in range(datetime.now().month - 1, 12):
         month_combo.append(all_months[i])
 
-    user_path = os.environ['USERPROFILE']
+    # Connecting to the Database
+    
+    # ***** Uncomment for WINDOWS **********
+    # user_path = os.environ['USERPROFILE']
+    # **************************************
+    
+    # ***** Uncomment for Linux ************
+    user_path = os.path.expanduser( '~' )
+    # **************************************
     app_data_path = user_path + '/AppData/Local/RatTrap'
     app_path = app_data_path + '/app.db'
-    try:
+    db_exist = os.path.exists(app_path)
+    if not db_exist:
+        os.makedirs(app_data_path)
         conn = sqlite3.connect(app_path)
-    except sqlite3.OperationalError:
-        os.mkdir(app_data_path)
-        conn = sqlite3.connect(app_path)
-
+    conn = sqlite3.connect(app_path)
     conn.execute("PRAGMA foreign_keys = ON")
     c = conn.cursor()
     create_db_tables(conn, c)
+	    
     visible_columns = [False, True, True, True, True, True, True, True]
     view_date = str(datetime.now().year) + '-' + str(datetime.now().month)
     budget, funds = create_funds_income(conn, c)
@@ -84,7 +94,7 @@ def main():
         if not event:
             break
         if event == 'Add Account':
-            budget_win.disable()
+            #budget_win.disable()
             event, values = create_account_win(sg).read(close=True)
             if event == 'Save':
                 create_acc = values['-New account-']
@@ -111,7 +121,7 @@ def main():
                     sg.popup(f'There is missing info needed to create the account')
 
         elif event == 'Add Category':
-            budget_win.disable()
+            #budget_win.disable()
             event, values = create_category_win(sg, account_menu).read(close=True)
             if event == 'Save':
                 create_cat = values['-New category-']
@@ -199,7 +209,7 @@ def main():
                     transaction_win['-Trans table-'].update(transaction_sheet)
 
         elif event == 'Budget Funds':
-            budget_win.disable()
+            #budget_win.disable()
             event, values = move_funds_win(sg, category_menu).read(close=True)
             if event == 'Update':
                 if values['-Menu-'] not in (None, 'No Categories Yet') and values['-Move Funds-']:
@@ -262,7 +272,7 @@ def main():
                             sg.popup(f'Unsuccessful transfer')
 
         elif event == 'Track Funds':
-            budget_win.disable()
+            #budget_win.disable()
             event, values = move_funds_win(sg, track_menu).read(close=True)
             if event == 'Update':
                 if values['-Menu-'] not in (None, 'No Account Yet') and values['-Move Funds-']:
@@ -328,7 +338,7 @@ def main():
             c.execute("SELECT * FROM account WHERE name=:name", {'name': row_name})
             account_row = c.fetchone()
             if account_row:
-                budget_win.disable()
+                #budget_win.disable()
                 event, values = edit_account_win(sg, account_row, account_menu).read(close=True)
                 if event == 'Update' and values['-Edit account-'] not in (None, row_name):
                     new_acc_name = values['-Edit account-']
@@ -346,7 +356,7 @@ def main():
                 c.execute("SELECT * FROM category WHERE name=:name", {'name': row_name})
                 category_row = c.fetchone()
                 if category_row:
-                    budget_win.disable()
+                    #budget_win.disable()
                     event, values = edit_category_win(sg, category_row, account_menu, category_menu).read(close=True)
                     old_acc = category_row[2]
                     if event == 'Set':
@@ -406,7 +416,7 @@ def main():
             c.execute("SELECT * FROM account WHERE name=:name AND type=:type", {'name': row_name, 'type': 'track'})
             account_row = c.fetchone()
             if account_row:
-                budget_win.disable()
+                #budget_win.disable()
                 event, values = edit_track_acc_win(sg, account_row, track_menu).read(close=True)
                 if event == 'Update':
                     new_acc_name = values['-Edit track-']
@@ -522,7 +532,7 @@ def main():
             else:
                 sg.popup('To edit a budget account use the other table')
 
-        budget_win.enable()
+        #budget_win.enable()
         budget_win.BringToFront()
         category_menu = make_category_menu(conn, c)
         account_menu = make_account_menu(conn, c)

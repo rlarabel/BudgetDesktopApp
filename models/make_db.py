@@ -11,20 +11,17 @@ def create_db_tables(conn, cursor):
             make_money_flow_db(conn, cursor)
         if ('track_categories',) not in tables_list:
             make_track_categories_db(conn, cursor)
-        if ('income',) not in tables_list:
-            make_income_db(conn, cursor)
 
 
 def make_money_flow_db(conn, cursor):
     with conn:
-        cursor.execute("""CREATE TABLE money_flow (
+        cursor.execute("""CREATE TABLE transactions (
                         id INTEGER PRIMARY KEY, 
                         date TEXT,
                         payee TEXT,
                         notes TEXT,
-                        total REAL,
-                        flow TEXT NOT NULL,
-                        account TEXT,
+                        total REAL NOT NULL,
+                        account TEXT NOT NULL,
                         category TEXT,
                         FOREIGN KEY(category) REFERENCES category(name)
                             ON UPDATE CASCADE,
@@ -37,9 +34,10 @@ def make_money_flow_db(conn, cursor):
 
 def make_track_categories_db(conn, cursor):
     with conn:
-        cursor.execute("""CREATE TABLE track_categories (
+        cursor.execute("""CREATE TABLE category_trans (
+                    id INTEGER PRIMARY KEY, 
                     date TEXT,
-                    total REAL,
+                    total REAL NOT NULL,
                     account TEXT,
                     category TEXT,
                     FOREIGN KEY(category) REFERENCES category(name)
@@ -53,7 +51,7 @@ def make_track_categories_db(conn, cursor):
 
 def make_category_db(conn, cursor):
     with conn:
-        cursor.execute("""CREATE TABLE category (
+        cursor.execute("""CREATE TABLE categories (
                     name TEXT PRIMARY KEY,
                     monthly_budget REAL,
                     trackaccount TEXT,
@@ -64,25 +62,12 @@ def make_category_db(conn, cursor):
         conn.commit()
 
 
-def make_income_db(conn, cursor):
-    with conn:
-        cursor.execute(""" CREATE TABLE income (
-                        id INTEGER PRIMARY KEY,
-                        budget REAL,
-                        funds REAL
-                        )""")
-
-        conn.commit()
-
-
 def make_account_db(conn, cursor):
     with conn:
-        cursor.execute("""CREATE TABLE account (
+        cursor.execute("""CREATE TABLE accounts (
                     name TEXT PRIMARY KEY,
                     type TEXT,
-                    total REAL,
-                    goal REAL,
-                    goal_date TEXT
+                    total REAL
         )""")
 
         conn.commit()
