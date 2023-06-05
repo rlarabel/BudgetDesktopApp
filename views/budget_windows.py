@@ -11,8 +11,8 @@ def edit_account_win(sg, account_info, menu):
 
 def create_account_win(sg):
     layout = [[sg.Text('New Account Info', font='Any 15')],
-              [sg.Text('Account Type:'), sg.Radio('Budget Funds', "Account Type:", default=True, k='-Budget account-'),
-               sg.Radio('Track Funds', "Account Type:", default=False, k='-Track account-')],
+              [sg.Text('Account Type:'), sg.Radio('Spending/Bill Funds', "Account Type:", default=True, k='-Spending account-'),
+               sg.Radio('Invesment/Saving Funds', "Account Type:", default=False, k='-Investment account-')],
               [sg.Input(key='-New account-')],
               [sg.Button('Save'), sg.Button('Exit')]]
 
@@ -21,21 +21,17 @@ def create_account_win(sg):
     return window
 
 
-def edit_category_win(sg, category_info, acc_menu, cat_menu):
-    layout = [[sg.Column([[sg.Text('Edit Category Name\nor\nMove to delete', font='Any 15')],
-                          [sg.Combo(values=cat_menu, k='-Edit category-',
-                                    default_value=category_info[0])],
-                          [sg.Button('Update')]]),
-               sg.Column([[sg.Text('Move accounts', font='Any 15')],
-                          [sg.Combo(values=acc_menu, k='-Edit account name-', readonly=True,
+def edit_category_win(sg, category_info, acc_menu):
+    layout = [[sg.Column([[sg.Text("Edit Category's Name", font='Any 15')],
+                          [sg.Input(category_info[1], k='-Edit Category-', size=(6, 1))],
+                          [sg.Button('Update Name')]]),
+               sg.Column([[sg.Text("Move Category's Data and then Delete", font='Any 15')],
+                          [sg.Combo(values=acc_menu, k='-Edit account-', readonly=True,
                                     default_value=category_info[2])],
-                          [sg.Button('Move Accounts')]]),
-               sg.Column([[sg.Text('Set a monthly budget', font='Any 15')],
-                          [sg.Input(category_info[1], k='-Category budget-', size=(6, 1))],
-                          [sg.Button('Set')]]),
+                          [sg.Button("Move")]]),
                sg.Button('Exit')]]
 
-    window = sg.Window('Edit/Delete Category', layout, keep_on_top=True, finalize=True)
+    window = sg.Window('Edit or Delete Category', layout, keep_on_top=True, finalize=True)
 
     return window
 
@@ -59,6 +55,15 @@ def move_funds_win(sg, menu):
     window = sg.Window('Budget Funds Transaction', layout, keep_on_top=True, finalize=True)
     return window
 
+
+def move_funds_acc_win(sg, menu):
+    layout = [[sg.Combo(values=menu, readonly=True, k='-From-'),
+               sg.Combo(values=menu, readonly=True, k='-To-'),
+               sg.Input(key='-Move Funds-')], [sg.Button('Update'), sg.Button('Exit')]]
+
+    window = sg.Window('Budget Funds Transaction', layout, keep_on_top=True, finalize=True)
+    return window
+    
 
 def edit_track_acc_win(sg, account_info, menu):
     if account_info[4]:

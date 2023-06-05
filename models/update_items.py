@@ -33,12 +33,11 @@ def update_funds(conn, cursor):
 def update_category_budget(conn, cursor, row):
     with conn:
         update_row = {
-            'date': row[0],
-            'total': row[1],
-            'category': row[3]
+            'id': row[0],
+            'total': row[2]
         }
         cursor.execute("""UPDATE track_categories SET total =:total
-                                    WHERE category=:category AND date=:date""", update_row)
+                                    WHERE id=:id""", update_row)
         conn.commit()
 
 
@@ -54,25 +53,28 @@ def update_account_track(conn, cursor, row):
         conn.commit()
 
 
-def update_transaction(conn, cursor, data, row_id):
+def update_transaction(conn, cursor, data, row_id, account_name):
     with conn:
         user_date = str(data['-Year-']) + '-' + str(data['-Month-']) + '-' + str(data['-Day-'])
         user_total = round(float(data['-Trans total-']), 2)
-        if data['-Outcome-']:
-            cursor.execute("SELECT * FROM category WHERE name=:name", {'name': data['-Trans menu-']})
-            category = cursor.fetchone()
-            if category:
-                cursor.execute("""UPDATE money_flow SET date=:date, payee=:payee, notes=:notes, total=:total, 
-                                flow=:flow, account=:account, category=:category
+        if user_total < 0:
+            cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", {'name': data['-Selected Category-'], 'account': account_name})
+            category_id = cursor.fetchone()[0]
+            if category_id:
+                cursor.execute("""UPDATE transactions SET date=:date, payee=:payee, notes=:notes, total=:total, 
+                                account=:account, category_id=:category_id
                                         WHERE id=:id""",
                                {'id': row_id, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
-                                'total': user_total, 'flow': 'out', 'account': category[2], 'category': category[0]})
+                                'total': user_total, 'account': account_name, 'category_id': category_id})
         else:
-            cursor.execute("""UPDATE money_flow SET date=:date, payee=:payee, notes=:notes, total=:total, 
-                            flow=:flow, account=:account, category=:category
+            cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", {'name': 'Unallocated Cash', 'account': account_name})
+            category_id = cursor.fetchone()[0]
+            if category_id:
+                cursor.execute("""UPDATE transactions SET date=:date, payee=:payee, notes=:notes, total=:total, 
+                            account=:account, category_id=:category_id
                                     WHERE id=:id""",
                            {'id': row_id, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
-                            'total': user_total, 'flow': 'in', 'account': None, 'category': None})
+                            'total': user_total, 'account': account_name, 'category_id': category_id})
 
         conn.commit()
 

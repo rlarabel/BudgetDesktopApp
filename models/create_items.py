@@ -1,24 +1,13 @@
 from models.update_items import update_funds
 
 
-def create_funds_income(conn, cursor):
+def make_category_menu(conn, cursor, account, edit_flag=False):
     with conn:
-        cursor.execute("SELECT * FROM income")
-        funds_exist = cursor.fetchone()
-        if not funds_exist:
-            cursor.execute("INSERT INTO income VALUES (:id, :budget, :funds)",
-                           {'id': '1', 'budget': 0, 'funds': 0})
-            conn.commit()
-
-        return update_funds(conn, cursor)
-
-
-def make_category_menu(conn, cursor):
-    with conn:
-        cursor.execute("SELECT * FROM category")
+        cursor.execute("SELECT name FROM categories WHERE account=:account", {'account': account})
         menu = []
         for temp in cursor.fetchall():
-            menu.append(temp[0])
+            if not (edit_flag and temp[0] == 'Unallocated Cash'):
+                menu.append(temp[0])
 
         if not menu:
             menu = ['No Categories Yet']
@@ -26,9 +15,9 @@ def make_category_menu(conn, cursor):
         return tuple(menu)
 
 
-def make_account_menu(conn, cursor, acc_type='budget'):
+def make_account_menu(conn, cursor, acc_type='spending'):
     with conn:
-        cursor.execute("SELECT * FROM account WHERE type=:type", {'type': acc_type})
+        cursor.execute("SELECT * FROM accounts WHERE type=:type", {'type': acc_type})
         menu = []
         for row in cursor.fetchall():
             menu.append(row[0])
@@ -38,36 +27,73 @@ def make_account_menu(conn, cursor, acc_type='budget'):
         return tuple(menu)
 
 
-def add_new_category(conn, cursor, data):
+def add_new_account(conn, cursor, data):
     with conn:
-        cursor.execute("SELECT * FROM account WHERE name=:name", {'name': data['-Account name-']})
-        parent_account = cursor.fetchone()
-
-        new_row = {
-            'name': data['-New category-'],
-            'monthly_budget': 0,
-            'trackaccount': parent_account[0]
+        new_row_acc = {
+            'name': data[0],
+            'type': data[1],
         }
-        cursor.execute("INSERT INTO category VALUES (:name, :monthly_budget, :trackaccount)", new_row)
+        
+        new_row_cat = {
+            'id': None,
+            'name': 'Unallocated Cash',
+            'account': data[0]
+        }
+        cursor.execute("INSERT INTO accounts VALUES (:name, :type)", new_row_acc)
+        cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", new_row_cat)
         conn.commit()
 
 
-def add_transaction(conn, cursor, data):
+def add_new_category(conn, cursor, data):
     with conn:
-        user_date = str(data['-Year-']) + '-' + str(data['-Month-']) + '-' + str(data['-Day-'])
-        user_total = round(float(data['-Trans total-']), 2)
-        if data['-Outcome-'] and data['-Trans menu-']:
-            cursor.execute("SELECT * FROM category WHERE name=:name", {'name': data['-Trans menu-']})
-            category = cursor.fetchone()
-            if category:
-                cursor.execute("""INSERT INTO money_flow  VALUES 
-                                (:id, :date, :payee, :notes, :total, :flow, :account, :category)""",
-                               {'id': None, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
-                                'total': user_total, 'flow': 'out', 'account': category[2], 'category': category[0]})
+        cursor.execute("SELECT * FROM accounts WHERE name=:name", {'name': data['-Account name-']})
+        parent_account = cursor.fetchone()
+
+        new_row = {
+            'id': None,
+            'name': data['-New category-'],
+            'account': parent_account[0]
+        }
+        cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", new_row)
+        conn.commit()
+
+
+def add_transaction(conn, cursor, data, sel_account):
+    with conn:
+    	# Formatting User Input Date and Total
+        input_month = int(data['-Month-'])
+        input_day = int(data['-Day-'])
+        if input_month < 10:
+            input_month = '0' + str(input_month)
+        else: 
+            input_month = str(input_month)
+        if input_day < 10:
+            input_day =  '0' + str(data['-Day-'])
         else:
-            cursor.execute("""INSERT INTO money_flow  VALUES 
-                                            (:id, :date, :payee, :notes, :total, :flow, :account, :category)""",
+            input_day = str(data['-Day-'])
+        user_date = str(data['-Year-']) + '-' + input_month + '-' + input_day
+        user_total = round(float(data['-Trans total-']), 2)        
+        category_id = None
+        
+        # Outcome Transaction
+        if user_total < 0:
+            # Selecting desired category_id
+            cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", {'name': data['-Selected Category-'], 'account': sel_account})
+            category_id = cursor.fetchone()[0]
+            if category_id:
+                cursor.execute("""INSERT INTO transactions VALUES 
+                                (:id, :date, :payee, :notes, :total, :account, :category_id)""",
+                               {'id': None, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
+                                'total': user_total, 'account': sel_account, 'category_id': category_id})
+        # Income Transaction
+        else:
+            cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", {'name': 'Unallocated Cash', 'account': sel_account})
+            category_id = cursor.fetchone()[0]
+            print(category_id)
+            if category_id:
+                cursor.execute("""INSERT INTO transactions  VALUES 
+                                            (:id, :date, :payee, :notes, :total, :account, :category_id)""",
                            {'id': None, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
-                            'total': user_total, 'flow': 'in', 'account': None, 'category': None})
+                            'total': user_total, 'account': sel_account, 'category_id': category_id})
 
         conn.commit()

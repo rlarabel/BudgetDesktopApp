@@ -3,11 +3,11 @@ def create_db_tables(conn, cursor):
         cursor.execute("select name from sqlite_master where type = 'table'")
         tables_list = cursor.fetchall()
 
-        if ('account',) not in tables_list:
+        if ('accounts',) not in tables_list:
             make_account_db(conn, cursor)
-        if ('category',) not in tables_list:
+        if ('categories',) not in tables_list:
             make_category_db(conn, cursor)
-        if ('money_flow',) not in tables_list:
+        if ('transactions',) not in tables_list:
             make_money_flow_db(conn, cursor)
         if ('track_categories',) not in tables_list:
             make_track_categories_db(conn, cursor)
@@ -17,15 +17,15 @@ def make_money_flow_db(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE transactions (
                         id INTEGER PRIMARY KEY, 
-                        date TEXT,
+                        date TEXT NOT NULL,
                         payee TEXT,
                         notes TEXT,
                         total REAL NOT NULL,
                         account TEXT NOT NULL,
-                        category TEXT,
-                        FOREIGN KEY(category) REFERENCES category(name)
+                        category_id INTEGER NOT NULL,
+                        FOREIGN KEY (account) REFERENCES accounts(name)
                             ON UPDATE CASCADE,
-                        FOREIGN KEY (account) REFERENCES account(name)
+                        FOREIGN KEY(category_id) REFERENCES categories(id)
                             ON UPDATE CASCADE
                         )""")
 
@@ -34,28 +34,28 @@ def make_money_flow_db(conn, cursor):
 
 def make_track_categories_db(conn, cursor):
     with conn:
-        cursor.execute("""CREATE TABLE category_trans (
+        cursor.execute("""CREATE TABLE track_categories (
                     id INTEGER PRIMARY KEY, 
-                    date TEXT,
+                    date TEXT NOT NULL,
                     total REAL NOT NULL,
-                    account TEXT,
-                    category TEXT,
-                    FOREIGN KEY(category) REFERENCES category(name)
+                    account TEXT NOT NULL,
+                    category_id INTEGER NOT NULL,
+                    FOREIGN KEY(category_id) REFERENCES categories(id)
                         ON UPDATE CASCADE,
-                    FOREIGN KEY (account) REFERENCES account(name)
+                    FOREIGN KEY (account) REFERENCES accounts(name)
                         ON UPDATE CASCADE
                     )""")
 
         conn.commit()
 
-
+#TODO: Fix primary key to be and id or account and name
 def make_category_db(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE categories (
-                    name TEXT PRIMARY KEY,
-                    monthly_budget REAL,
-                    trackaccount TEXT,
-                    FOREIGN KEY(trackaccount) REFERENCES account(name)
+                    id INTEGER PRIMARY KEY,
+                    name TEXT ,
+                    account TEXT,
+                    FOREIGN KEY(account) REFERENCES accounts(name)
                         ON UPDATE CASCADE
                     )""")
 
@@ -66,8 +66,7 @@ def make_account_db(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE accounts (
                     name TEXT PRIMARY KEY,
-                    type TEXT,
-                    total REAL
+                    type TEXT NOT NULL
         )""")
 
         conn.commit()
