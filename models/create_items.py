@@ -1,6 +1,14 @@
 from models.update_items import update_funds
 
 
+def make_total_funds (conn, cursor):
+    grand_total = 0
+    with conn:    
+        cursor.execute("SELECT total FROM transactions")
+        for temp in cursor.fetchall():
+           grand_total += temp[0]
+    return grand_total
+
 def make_category_menu(conn, cursor, account, edit_flag=False):
     with conn:
         cursor.execute("SELECT name FROM categories WHERE account=:account", {'account': account})

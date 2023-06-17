@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, select_category
 from views.budget_windows import move_funds_win, edit_track_acc_win, edit_account_win, edit_category_win, create_account_win, create_category_win, move_funds_acc_win
-from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu
+from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu, make_total_funds
 from models.sheets import set_row_colors, make_track_sheet, make_transaction_sheet, make_budget_sheet, set_track_row_colors
 from models.update_items import update_funds, update_category_budget, update_transaction, update_account_track, pretty_print_date, update_month_combo
 from models.make_db import create_db_tables
@@ -16,7 +16,6 @@ FUNDS = '-Funds-'
 
 
 def main():
-    # TODO: Any behind? 11 years in advanced
     year_combo = []
     for i in range(datetime.now().year - 3, datetime.now().year + 5):
         year_combo.append(str(i))
@@ -60,7 +59,7 @@ def main():
         [sg.Menu(menu_def, key='-MENU-')],
         [sg.Text('Account Window', justification='center', size=(67, 1), font='Any 15')],
         [sg.Text(size=(55, 1), key='View date', font='Any 11'),
-         sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((160, 1), (1, 1))),
+         sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
          sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)],
         [sg.Button('Categorize Funds'), sg.Button('Move Funds To Different Account')],
         [sg.Table(budget_sheet, key='-Table-', auto_size_columns=False,
@@ -131,9 +130,14 @@ def main():
                             month_int = '0' + str(i)
                         else:
                             month_int = str(i)
-            # Checks if the year given is an int and between 1800 - 2500                
-            if isinstance(values['-Year-'], int) and values['-Year-'] < 2500 and values['-Year-'] > 1800: 
-                set_year = str(values['-Year-'])
+            # Checks if the year given is an int and between 1800 - 2500
+            try:
+                int_user_year = int(values['-Year-'])
+            except ValueError:
+                int_user_year = None                
+            
+            if int_user_year and int_user_year < 2500 and int_user_year > 1800: 
+                set_year = values['-Year-']
             view_date = set_year + '-' + month_int
 
         elif event == 'Transactions' and not transaction_win_active:
@@ -142,7 +146,9 @@ def main():
             transaction_sheet = make_transaction_sheet(conn, c)
             transaction_win = create_transaction_window(sg, transaction_sheet, visible_columns_transactions)
             keys_to_validate = ['-Year-', '-Month-', '-Day-', '-Trans total-']
-
+            total_funds = make_total_funds(conn, c)
+            transaction_win[FUNDS].update(total_funds)
+            
             while transaction_win_active:
                 event, values = transaction_win.Read()
                 if event in ('Back To Accounts', None):
@@ -203,9 +209,10 @@ def main():
 
                 if transaction_win_active:
                     transaction_win.BringToFront()
-
                     transaction_sheet = make_transaction_sheet(conn, c)
                     transaction_win['-Trans table-'].update(transaction_sheet)
+                    total_funds = make_total_funds(conn, c)
+                    transaction_win[FUNDS].update(total_funds)
 
         elif event == 'Categorize Funds':
             # Gets desired account info before the next window
@@ -394,7 +401,6 @@ def main():
                         c.execute("SELECT name FROM categories WHERE name=:name AND account=:account", {'name': new_cat, 'account': old_acc})
                         category_flag = c.fetchall()
                         
-                        # TODO: Change so it doesn't update a name already in the account
                         if not category_flag and new_cat and row_cat_id:
                             c.execute("""UPDATE categories SET name=:new_category
                                                         WHERE id=:id""",
