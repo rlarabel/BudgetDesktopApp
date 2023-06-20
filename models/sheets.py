@@ -62,8 +62,6 @@ def make_track_sheet(conn, cursor, track_date, months):
 
 def make_budget_sheet(conn, cursor, budget_date):
     with conn:
-        cursor.execute("SELECT * FROM transactions")
-        cursor.execute("SELECT * FROM categories")
         cursor.execute("SELECT * FROM accounts WHERE type=:type", {'type': 'spending'})
         table = []
         unallocated_cash_info = []
@@ -77,61 +75,64 @@ def make_budget_sheet(conn, cursor, budget_date):
             user_year = int(user_year)
             user_month = int(user_month)
             
+            # Calculating Next Month date
+            if user_month == 12:
+                next_month = 1
+                next_months_year = user_year + 1
+            else:
+                next_month = user_month + 1
+                next_months_year = user_year
+            if next_month < 10:
+                next_month = '0' + str(next_month)
+            else:
+                next_month = str(next_month)
+            next_month_date = str(next_months_year) + '-' + next_month + '-01'
             
-                
+            tomorrows_date = datetime.today() + timedelta(1) 
+            tomorrows_date = tomorrows_date.strftime("%Y-%m-%d")    
             # Calculating the date needed to select the right enteries in the DB
             # If its this month or the future, use tomorrow's date. Else, for the past months, use the next months first date. 
             # Use the date to search the transaction table    
-            if (user_month >= datetime.now().month and user_year == datetime.now().year) or user_year > datetime.now().year:
-                slt_budget_date = datetime.today() + timedelta(1) 
-                slt_budget_date = slt_budget_date.strftime("%Y-%m-%d")
+            if (user_month >= datetime.now().month and user_year == datetime.now().year) or user_year > datetime.now().year: 
+                slt_budget_date = tomorrows_date
 
             else:
-                # Calculating Next Month date
-                if user_month == 12:
-                    next_month = 1
-                    next_months_year = user_year + 1
-                else:
-                    next_month = user_month + 1
-                    next_months_year = user_year
-                if next_month < 10:
-                    next_month = '0' + str(next_month)
-                else:
-                    next_month = str(next_month)
-                
-                slt_budget_date = str(next_months_year) + '-' + next_month + '-01'
+
+                slt_budget_date = next_month_date
             
-            account_transactions = cursor.fetchall()
             # Gets the total of all transactions for an account selected from the DB
-            cursor.execute("SELECT * FROM transactions WHERE account=:name AND date<:date", {'name': account[0], 'date': slt_budget_date})
+            cursor.execute("SELECT total, category_id FROM transactions WHERE account=:name AND date<:date", {'name': account[0], 'date': tomorrows_date})
             account_transactions = cursor.fetchall()
+            
             account_total = 0
             for single_trans in account_transactions:
-                account_total += single_trans[4]
+                cursor.execute("SELECT name FROM categories WHERE id=:id", {'id': single_trans[1]})
+                account_total += single_trans[0]
+                unallocated_cash =  account_total       
             table.append(['',account[0], '', '', '', '', str(round(account_total, 2))])
-            
-            # Gets the monthly budget, budget progress, montly spending, and upcoming expenses for each category selected from the DB
-            unallocated_cash = account_total
+
+            cursor.execute("SELECT total FROM track_categories WHERE account=:account", {'account': account[0]})
+            for allocated_money in cursor.fetchall():
+                unallocated_cash -= allocated_money[0]
+                  
             for category in all_categories:
                 under_allocated_flag = False
                 over_allocated_flag = False
                 category_id = category[0]
                 category_name = category[1]
                 # Gets user allocated data of the category for the selected month
-                cursor.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND account=:account AND date<:date", {'category_id': category_id, 'account': account[0], 'date': slt_budget_date})
+                cursor.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND account=:account AND date<:date", {'category_id': category_id, 'account': account[0], 'date': next_month_date})
                 category_budget = cursor.fetchall()
                 cursor.execute("SELECT * FROM transactions WHERE category_id=:category_id AND account=:account", {'category_id': category_id, 'account': account[0]})
                 category_transactions = cursor.fetchall()
-
-                month_budget, month_progress, month_spending, category_total, upcoming_expenses, uncat_spending_flag = get_monthly_category_data(category_transactions, category_budget, slt_budget_date, category_name)
+                
+                # Gets the monthly budget, budget progress, montly spending, and upcoming expenses for each category selected from the DB
+                month_budget, month_progress, month_spending, category_total, upcoming_expenses, uncat_spending_flag, cat_spending = get_monthly_category_data(category_transactions, category_budget, next_month_date, category_name)
                 if category_name != 'Unallocated Cash':
-                    if month_progress == '-':
-                        month_progress = '-'
-                    else:
-                        month_progress = str(round(month_progress)) + '%'
                     
-                    #unallocated_cash -= month_budget
-
+                    month_progress = str(round(month_progress)) + '%'
+                   
+                    unallocated_cash -= cat_spending
                     month_budget = str(round(month_budget, 2))
                     month_spending = str(round(month_spending, 2))
                
@@ -140,12 +141,10 @@ def make_budget_sheet(conn, cursor, budget_date):
                         
                     else:
                         upcoming_expenses = str(round(upcoming_expenses, 2)) 
-                    unallocated_cash -= category_total    
                     category_total = str(round(category_total, 2))    
                     
                     table.append([category_id, category_name, month_budget, upcoming_expenses, month_spending, month_progress, category_total])
                 else: 
-                    #unallocated_cash += category_total
                     unallocated_id = category_id
             unallocated_category = [unallocated_id,'Unallocated Cash', '-', '-', '-', '-', unallocated_cash]
             table.append(unallocated_category)
@@ -167,6 +166,9 @@ def get_monthly_category_data(transactions, budget_data, budget_date, category_n
     budget = 0 
     total_budget = 0
     upcoming_expenses = 0
+    categorized_spending = 0
+    last_months_total = 0
+    
     uncat_spending_flag = False
     if budget_date:
         slt_sel_date = datetime.strptime(budget_date, '%Y-%m-%d')
@@ -180,25 +182,29 @@ def get_monthly_category_data(transactions, budget_data, budget_date, category_n
     if transactions and budget_date:
         for single_trans in transactions:
             trans_date = datetime.strptime(single_trans[1], '%Y-%m-%d')
+            if single_trans[4] < 0 and category_name != "Unallocated Cash":
+                categorized_spending += single_trans[4]
             # Check if a transaction is less than 0, is uncategorized, and isn't a transfer
             if single_trans[4] < 0 and category_name == "Unallocated Cash" and single_trans[3] != "TRANSFER":
                 uncat_spending_flag = True
+                
             # Checks the date and determines if a transaction should be added to already spent money or upcoming expenses
             if single_trans[1] < budget_date:
                 # Gets only the selected months spending
                 if trans_date.month == eq_sel_date.month and eq_sel_date.year == trans_date.year:
-                    spending -= single_trans[4] 
+                    spending -= single_trans[4]
                 total_spending -= single_trans[4]
             # Checks if budget date is greater than today and selects only transactions with the same year and month the user slected
             elif budget_date > datetime.today().strftime("%Y-%m-%d") and eq_sel_date.month == trans_date.month and trans_date.year == eq_sel_date.year:
                 upcoming_expenses -= single_trans[4]
             
     total = total_budget - total_spending
+    budget = total_budget - total_spending + spending
     if budget == 0:
-        progress = '-'
+        progress = 0
     else:
         progress = ((total - upcoming_expenses) / budget) * 100
-    return budget, progress, spending, total, upcoming_expenses, uncat_spending_flag 
+    return budget, progress, spending, total, upcoming_expenses, uncat_spending_flag, categorized_spending 
 
 
 def set_row_colors(conn, cursor, unallocated_cash_info):

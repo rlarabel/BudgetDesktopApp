@@ -107,7 +107,6 @@ def main():
                     sg.popup(f'There is missing info needed to create the account')
 
         elif event == 'Add Category':
-            #TODO: Add user checking, so no one can add same account name and category name
             event, values = create_category_win(sg, account_menu).read(close=True)
             if event == 'Save':
                 create_cat = values['-New category-']
@@ -216,6 +215,8 @@ def main():
 
         elif event == 'Categorize Funds':
             # Gets desired account info before the next window
+            c.execute("SELECT * FROM track_categories")
+            print(c.fetchall()) 
             event = None
             acc_event, acc_values = select_account(sg, account_menu).read(close=True)
             if acc_event == 'OK' and acc_values['-Account menu-']:
@@ -264,7 +265,7 @@ def main():
                                   {'category_id': category_id, 'date': track_date})
                         tracking_funds = c.fetchone()
                     
-                    # moves funds from a selected category to anohter selectred category 
+                    # moves funds from a selected category to the 'Unallocated Cash' category 
                     if tracking_funds:
                         tracking_funds = list(tracking_funds)
                         move_flag = True
@@ -327,6 +328,8 @@ def main():
 
         elif event == '-Table-':
             # Getting info of the row clicked on
+            row_cat_id = None
+            account_row = None
             if values['-Table-']:
                 row_int = values['-Table-'][0]
                 row = budget_sheet[row_int]
@@ -334,7 +337,7 @@ def main():
                 try:
                     row_cat_id = int(row[0])
                 except ValueError:
-                    row_cat_id = None
+                    pass
                 c.execute("SELECT * FROM accounts WHERE name=:name", {'name': row_name})
                 account_row = c.fetchone()
             if account_row and not row_cat_id:
