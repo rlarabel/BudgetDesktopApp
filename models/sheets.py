@@ -2,7 +2,9 @@ from datetime import datetime, timedelta
 from dateutil import relativedelta
 from itertools import zip_longest
 
-# Getting the data for the time period selected by the user
+# Description: (In the works) Retirement planner
+# Input: 
+# Output:
 def make_track_sheet(conn, cursor, track_date, months):
     with conn:
     	# Gets all saved accounts from DB
@@ -60,31 +62,34 @@ def make_track_sheet(conn, cursor, track_date, months):
 
         return table
 
-
+# Description: Creates the budget sheet based on the information the user has provided
+# Inputs: conn - test DB connection, cursor - to access DB, and budget_date - specifies what data to show 
+# Outputs: table - A 2D list with each inside table having 7 elements (id, name, monthly budget, upcoming monthly expenses, monthly spending, monthly progress, total [available]),
+#			unallocated_cash_info - a list of dictionary for all the accounts that contains different flags (over allocated, under allocated, uncategorized spending) for the program to warn the user
+#           about 
 def make_budget_sheet(conn, cursor, budget_date):
     with conn:
-        cursor.execute("SELECT * FROM accounts WHERE type=:type", {'type': 'spending'})
+        # Initalize variables
         table = []
         unallocated_cash_info = []
-        # Edit dates to get desired results
         budget_date = budget_date + '-01'
+        todays_date = datetime.today().strftime("%Y-%m-%d")
         
+        # Loop through all accounts 
+        cursor.execute("SELECT * FROM accounts WHERE type=:type", {'type': 'spending'})
         for account in cursor.fetchall():
             uncat_spending_flag = False
-            # Finds the account name
-            cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
-            all_categories = cursor.fetchall()
             
-            todays_date = datetime.today().strftime("%Y-%m-%d")    
-            # Gets the total of all transactions for an account selected from the DB
+            # Gets the total of all previous transactions for an account selected from the DB
             cursor.execute("SELECT total, category_id FROM transactions WHERE account=:name AND date<=:date", {'name': account[0], 'date': todays_date})
             account_transactions = cursor.fetchall()
-            
             account_total = 0
             for single_trans in account_transactions:
                 cursor.execute("SELECT name FROM categories WHERE id=:id", {'id': single_trans[1]})
                 account_total += single_trans[0]
             unallocated_cash =  account_total       
+            
+            # Creates account row in budget sheet
             table.append(['',account[0], '', '', '', '', str(round(account_total, 2))])
 
 			# Subtract the budget values for future months from the unallocated money
@@ -94,7 +99,10 @@ def make_budget_sheet(conn, cursor, budget_date):
             cursor.execute("SELECT total FROM track_categories WHERE account=:account AND date>:date", {'account': account[0], 'date': date_selected})
             for allocated_money in cursor.fetchall():
                 unallocated_cash -= allocated_money[0]
-                  
+            
+            # Loop through all categories
+            cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
+            all_categories = cursor.fetchall()      
             for category in all_categories:
                 under_allocated_flag = False
                 over_allocated_flag = False
@@ -110,9 +118,11 @@ def make_budget_sheet(conn, cursor, budget_date):
                 else: 
                     unallocated_id = category_id
             
-            # Needs to be the last row added for an account
+            # The unallocated category is the last row added for an account
             unallocated_category = [unallocated_id,'Unallocated Cash', '', '', '', '', str(round(unallocated_cash, 2))]
             table.append(unallocated_category)
+            
+            # Flags for over or under budgeting and spending
             cursor.execute("SELECT id FROM transactions WHERE account=:name AND category_id=:category_id AND total<:total AND notes!=:notes ", 
                               {'name': account[0], 'category_id': unallocated_id, 'notes':'TRANSFER', 'total': 0})
             if cursor.fetchall():
@@ -128,7 +138,9 @@ def make_budget_sheet(conn, cursor, budget_date):
         
         return table, unallocated_cash_info
 
-
+# Description: Gets the monthly data for each category 
+# Input:
+# Output:
 def get_monthly_category_data(cursor, todays_date, budget_date, category_name, category_id, account):
     spending = 0
     total = 0 
@@ -192,6 +204,8 @@ def get_monthly_category_data(cursor, todays_date, budget_date, category_name, c
     if amount_budgeted:
          for months_budget in amount_budgeted:
              total += months_budget[0]
+             
+    # Formatting
     if progress != '-':    
         progress = str(round(progress)) + '%'
     budget = str(round(budget, 2))
