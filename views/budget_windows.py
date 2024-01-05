@@ -1,5 +1,5 @@
 def edit_account_win(sg, account_info, menu):
-    layout = [[sg.Column([[sg.Text('Rename Or Move account', font='Any 15')],
+    layout = [[sg.Column([[sg.Text('Rename Or Move Account', font='Any 15')],
                           [sg.Combo(values=menu, k='-Edit account-', default_value=account_info[0])],
                           [sg.Button('Update')]]),
                sg.Button('Exit')]]
@@ -21,14 +21,10 @@ def create_account_win(sg):
     return window
 
 
-def edit_category_win(sg, category_info, acc_menu):
-    layout = [[sg.Column([[sg.Text("Edit Category's Name", font='Any 15')],
-                          [sg.Input(category_info[1], k='-Edit Category-', size=(6, 1))],
-                          [sg.Button('Update Name')]]),
-               sg.Column([[sg.Text("Move Category's Data and then Delete", font='Any 15')],
-                          [sg.Combo(values=acc_menu, k='-Edit account-', readonly=True,
-                                    default_value=category_info[2])],
-                          [sg.Button("Move")]]),
+def edit_category_win(sg, category_info, menu):
+    layout = [[sg.Column([[sg.Text('Rename Or Move Category', font='Any 15')],
+                          [sg.Combo(values=menu, k='-Edit Category-', default_value=category_info[1])],
+                          [sg.Button('Update')]]),
                sg.Button('Exit')]]
 
     window = sg.Window('Edit or Delete Category', layout, keep_on_top=True, finalize=True)
@@ -47,19 +43,18 @@ def create_category_win(sg, menu):
     return window
 
 
-def move_funds_win(sg, menu):
-    layout = [[sg.Combo(values=menu, readonly=True, k='-Menu-'),
-               sg.Combo(values=('+', '-', '*', '/', '='), readonly=True, k='-Math Ops-'),
-               sg.Input(key='-Move Funds-')], [sg.Button('Update'), sg.Button('Exit')]]
+def move_funds_win(sg, category):
+    layout = [[sg.Text(f"Move funds from Unallocated Cash to {category}: "), sg.Input(key='-Move Funds-')], 
+              [sg.Button('Update'), sg.Button('Edit Category'), sg.Button('Exit')]]
 
     window = sg.Window('Budget Funds Transaction', layout, keep_on_top=True, finalize=True)
     return window
 
 
-def move_funds_acc_win(sg, menu):
-    layout = [[sg.Combo(values=menu, readonly=True, k='-From-'),
+def move_funds_acc_win(sg, menu, account):
+    layout = [[sg.Text(f"Move funds from {account} to "), 
                sg.Combo(values=menu, readonly=True, k='-To-'),
-               sg.Input(key='-Move Funds-')], [sg.Button('Update'), sg.Button('Exit')]]
+               sg.Input(key='-Move Funds-')], [sg.Button('Update'), sg.Button('Edit Account'), sg.Button('Exit')]]
 
     window = sg.Window('Budget Funds Transaction', layout, keep_on_top=True, finalize=True)
     return window

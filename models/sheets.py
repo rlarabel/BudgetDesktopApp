@@ -226,7 +226,9 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
         account_color = []
         i = 0
         cursor.execute("SELECT * FROM accounts WHERE type=:spending OR type=:income ", {'spending': 'spending', 'income': 'income'})
+        print(unallocated_cash_info)
         for account in cursor.fetchall():
+            print(account)
             color_info = None
             j = 0
             while not color_info and len(unallocated_cash_info) > j:
@@ -241,7 +243,8 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
                 account_color.append((i, 'navy blue', 'grey'))
             i += 1
             cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
-            for _ in cursor.fetchall():
+            for cat in cursor.fetchall():
+                print(cat)
                 i += 1
             if color_info['over allocated'] or color_info['uncategorized spending']:
                 account_color.append((i-1, 'navy blue', 'red'))
@@ -249,7 +252,7 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
                 account_color.append((i-1, 'navy blue', 'yellow'))
             else:
                 account_color.append((i-1, 'navy blue', 'green')) 
-
+        print(account_color)
         return account_color
 
 

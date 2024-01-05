@@ -34,7 +34,6 @@ def main():
     app_data_path = user_path + '/AppData/Local/RatTrap'
     location_exist = os.path.exists(app_data_path)
     app_path = app_data_path + '/app.db'
-    #db_exist = os.path.exists(app_path)
     if not location_exist:
         os.makedirs(app_data_path)
     conn = sqlite3.connect(app_path)
@@ -48,7 +47,7 @@ def main():
     view_date = datetime.now().strftime("%Y-%m")
     
     account_menu = make_account_menu(conn, c)
-    track_menu = make_account_menu(conn, c, 'track')
+    #track_menu = make_account_menu(conn, c, 'track')
     budget_sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
     track_sheet = make_track_sheet(conn, c, view_date, all_months)
     menu_def = [['&New', ['Add Account', 'Add Category']],
@@ -61,7 +60,6 @@ def main():
         [sg.Text(size=(55, 1), key='View date', font='Any 11'),
          sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
          sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)],
-        [sg.Button('Categorize Funds'), sg.Button('Move Funds To Different Account')],
         [sg.Table(budget_sheet, key='-Table-', auto_size_columns=False,
                   headings=['Category ID','Name', 'Budget', 'Upcoming Expenses', 'Spendings' , 'Budget left', 'Available'],
                   row_colors=set_row_colors(conn, c, unallocated_cash_info), enable_events=True, justification='left',
@@ -213,119 +211,6 @@ def main():
                     total_funds = make_total_funds(conn, c)
                     transaction_win[FUNDS].update(total_funds)
 
-        elif event == 'Categorize Funds':
-            # Gets desired account info before the next window
-            c.execute("SELECT * FROM track_categories")
-            print(c.fetchall()) 
-            event = None
-            acc_event, acc_values = select_account(sg, account_menu).read(close=True)
-            if acc_event == 'OK' and acc_values['-Account menu-']:
-                selected_account = acc_values['-Account menu-']
-                category_menu = make_category_menu(conn, c, selected_account, True)
-                event, values = move_funds_win(sg, category_menu).read(close=True)
-            if event == 'Update':
-                if values['-Menu-'] not in (None, 'No Categories Yet') and values['-Move Funds-']:
-                    math_operator = values['-Math Ops-']
-                    category_name = values['-Menu-']
-                    move_funds = 0
-                    
-                    # Format view date for DB
-                    input_year, input_month = view_date.split('-')
-                    input_month = int(input_month)
-                    if input_month < 10:
-                        input_month = '0' + str(input_month)
-                    else: 
-                        input_month = str(input_month)
-                    track_date = input_year + '-' + input_month + '-01'
-                    
-                    # Error Checking for User Input
-                    try:
-                        move_funds = round(float(values['-Move Funds-']), 2)
-                    except ValueError:
-                        math_operator = ''
-
-
-                    with conn:
-                    	# Checking for entry for a certain category and month, if not add one
-                        c.execute("SELECT * FROM categories WHERE name=:name AND account=:account",
-                                  {'name': category_name, 'account': selected_account})
-                        #category_info = 
-                        category_id = c.fetchone()[0]           
-                        c.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND date=:date",
-                                  {'category_id': category_id, 'date': track_date})
-                        category_transaction = c.fetchone()
-                        if not category_transaction:
-                            c.execute("""INSERT INTO track_categories VALUES (:id, :date, :total, :account, :category_id)""",
-                                      {'id': None, 'date': track_date, 'total': 0, 'account': selected_account,
-                                       'category_id': category_id})
-                            conn.commit()
-                        
-                        # Selects an account and category
-                        c.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND date=:date",
-                                  {'category_id': category_id, 'date': track_date})
-                        tracking_funds = c.fetchone()
-                    
-                    # moves funds from a selected category to the 'Unallocated Cash' category 
-                    if tracking_funds:
-                        tracking_funds = list(tracking_funds)
-                        move_flag = True
-                        
-                        if math_operator == '-':
-                            tracking_funds[2] -= move_funds
-                        elif math_operator == '+':
-                            tracking_funds[2] += move_funds
-                        elif math_operator == '*':
-                            tracking_funds[2] *= move_funds
-                        elif math_operator == '/':
-                            try:
-                                tracking_funds[2] /= move_funds
-                            except ZeroDivisionError:
-                                move_flag = False
-                        elif math_operator == '=':
-                            tracking_funds[2] = move_funds
-                        else:
-                            move_flag = False
-
-                        if move_flag:
-                            update_category_budget(conn, c, tracking_funds)
-                            sg.popup(f'Successful\n{category_name} {math_operator} {move_funds} ')
-                        else:
-                            sg.popup(f'Unsuccessful transfer')
-
-        elif event == 'Move Funds To Different Account':
-            event, values = move_funds_acc_win(sg, account_menu).read(close=True)
-            if event == 'Update':
-                # Adds a new transaction to a category unless same date
-                if values['-From-'] not in (None, 'No Account Yet') and values['-To-'] not in (None, 'No Account Yet') and values['-To-'] != values['-From-']:
-                    move_funds = 0
-                    account_from = values['-From-']
-                    account_to = values['-To-']
-                    
-                    # Error Checking     
-                    move_flag = False
-                    try:
-                        move_funds = round(float(values['-Move Funds-']), 2)
-                    except ValueError:
-                        move_flag = True
-
-                   # Inserting two new transaction into the Database
-                    with conn:
-                        if not move_flag:
-                            c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  account_from})
-                            category_id_from = c.fetchone()[0]
-                            c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  account_to})
-                            category_id_to = c.fetchone()[0]
-                            c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                                      {'id': None, 'date': datetime.now().strftime('%Y-%m-%d'), 'payee': None, 'notes': 'TRANSFER', 'total': 0-move_funds, 'account': account_from,
-                                       'category_id': category_id_from})
-                            c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                                      {'id': None, 'date': datetime.now().strftime('%Y-%m-%d'), 'payee': None, 'notes': 'TRANSFER', 'total': move_funds, 'account': account_to,
-                                       'category_id': category_id_to})
-                            conn.commit()
-                            sg.popup(f'Successful\n{move_funds} from {account_from} to {account_to}')
-                        else:
-                            sg.popup(f'Unsuccessful transfer')
-
         elif event == '-Table-':
             # Getting info of the row clicked on
             row_cat_id = None
@@ -334,84 +219,137 @@ def main():
                 row_int = values['-Table-'][0]
                 row = budget_sheet[row_int]
                 row_name = row[1]
-                try:
-                    row_cat_id = int(row[0])
-                except ValueError:
-                    pass
+                row_cat_id = row[0]
                 c.execute("SELECT * FROM accounts WHERE name=:name", {'name': row_name})
                 account_row = c.fetchone()
-            if account_row and not row_cat_id:
-                # Edit Account
-                event, values = edit_account_win(sg, account_row, account_menu).read(close=True)
-                if event == 'Update' and values['-Edit account-'] not in (None, row_name):
-                    c.execute("SELECT name FROM accounts")
-                    all_acccount_names = c.fetchall()
-                    new_acc_name = values['-Edit account-']
-                    if new_acc_name not in all_account_names:
-                        # Change Name of Account
-                        c.execute("UPDATE accounts SET name=:new_account WHERE name=:old_account",
+                
+            # User clicked on an account row in the budget table    
+            if account_row and not row_cat_id:																
+            	event, values = move_funds_acc_win(sg, account_menu, row_name).read(close=True)
+            	if event == 'Update':																		# Transfer money to a differernt account
+            	    if values['-To-'] not in (None, 'No Account Yet', row_name):
+                        move_funds = 0
+                        account_to = values['-To-']
+                    
+                        # Error Checking     
+                        move_flag = False
+                        try:
+                            move_funds = round(float(values['-Move Funds-']), 2)
+                        except ValueError:
+                            move_flag = True
+
+                        # Inserting two new transaction into the Database
+                        with conn:
+                            if not move_flag:
+                                c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  row_name})
+                                category_id_from = c.fetchone()[0]
+                                c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  account_to})
+                                category_id_to = c.fetchone()[0]
+                                c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
+                                      {'id': None, 'date': datetime.now().strftime('%Y-%m-%d'), 'payee': None, 'notes': 'TRANSFER', 'total': 0-move_funds, 'account': row_name,
+                                       'category_id': category_id_from})
+                                c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
+                                      {'id': None, 'date': datetime.now().strftime('%Y-%m-%d'), 'payee': None, 'notes': 'TRANSFER', 'total': move_funds, 'account': account_to,
+                                       'category_id': category_id_to})
+                                conn.commit()
+                                sg.popup(f'Successful\n{move_funds} from {row_name} to {account_to}')
+                            else:
+                                sg.popup(f'Unsuccessful transfer')
+            	elif event == 'Edit Account':																# Edit Account
+                    edit_event, edit_values = edit_account_win(sg, account_row, account_menu).read(close=True)
+                    if edit_event == 'Update' and edit_values['-Edit account-'] not in (None, row_name):
+                        new_acc_name = edit_values['-Edit account-']
+                        if new_acc_name not in account_menu:											# Change Name of Account
+                            c.execute("UPDATE accounts SET name=:new_account WHERE name=:old_account",
                                   {'new_account': new_acc_name, 'old_account': row_name})
-                        conn.commit()
-                        sg.popup(f'{row_name} account name was changed to {new_acc_name}')
-                    else:
-                        # Move data to another account and then delete
-                        c.execute("SELECT type FROM accounts WHERE name=:name", {'name': row_name}) 
-                        account_from_type = c.fetchone()[0]
-                        c.execute("SELECT type FROM accounts WHERE name=:name", {'name': new_acc_name}) 
-                        account_to_type = c.fetchone()[0]
-                        if account_from_type == account_to_type:   
-                            delete_account(conn, c, new_acc_name, row_name)
-                            sg.popup(f'{row_name} was delete\nfunds were moved to account {new_acc_name}')
-                        else:
-                            sg.popup('Cannot Move data to different types of accounts')
-            else:
-                # Edit Category
+                            conn.commit()
+                            sg.popup(f'{row_name} account name was changed to {new_acc_name}')
+                        else:																				# Move data to another account and then delete
+                            c.execute("SELECT type FROM accounts WHERE name=:name", {'name': row_name}) 
+                            account_from_type = c.fetchone()[0]
+                            c.execute("SELECT type FROM accounts WHERE name=:name", {'name': new_acc_name}) 
+                            account_to_type = c.fetchone()[0]
+                            if account_from_type == account_to_type:   
+                                delete_account(conn, c, new_acc_name, row_name)
+                                sg.popup(f'{row_name} was delete\nfunds were moved to account {new_acc_name}')
+                            else:
+                                sg.popup('Cannot Move data to different types of accounts')
+            
+            # User clicked on a category row in the budget table
+            else:																							
                 c.execute("SELECT * FROM categories WHERE id=:id", {'id': row_cat_id})
                 category_row = c.fetchone()
-                if category_row:
-                    old_cat_name = category_row[1] 
-                    old_acc = category_row[2]
+                if category_row and row_name != "Unallocated Cash":
+                    selected_category = category_row[1] 
+                    selected_account = category_row[2]
+                    event, values = move_funds_win(sg, row_name).read(close=True)
+                    if event == 'Update':
+                        if values['-Move Funds-']:
+                            move_funds = 0
                     
-                    event, values = edit_category_win(sg, category_row, account_menu).read(close=True)
+                            # Format view date for DB
+                            input_year, input_month = view_date.split('-')
+                            input_month = int(input_month)
+                            if input_month < 10:
+                                input_month = '0' + str(input_month)
+                            else: 
+                                input_month = str(input_month)
+                            track_date = input_year + '-' + input_month + '-01'
                     
-                    if event == "Move" and old_cat_name != 'Unallocated Cash':
-                        # Move Data and Delete old Category
-                        new_acc = values['-Edit account-']
-                        category_menu = make_category_menu(conn, c, new_acc, True)
-                        cat_event, cat_values = select_category(sg, category_menu).read(close=True)
-                        new_cat_id = None
+                            # Error Checking for User Input
+                            try:
+                                move_funds = round(float(values['-Move Funds-']), 2)
+                            except ValueError:
+                                move_funds = 0
+
+                            # TODO: Move this whole section into update_category_budget 
+                            with conn:
+                    	        # Checking for entry for a certain category and month, if not add one          
+                                c.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND date=:date",
+                                  {'category_id': row_cat_id, 'date': track_date})
+                                category_transaction = c.fetchone()
+                                if not category_transaction:
+                                    c.execute("""INSERT INTO track_categories VALUES (:id, :date, :total, :account, :category_id)""",
+                                      {'id': None, 'date': track_date, 'total': 0, 'account': selected_account, 'category_id': row_cat_id})
+                                    conn.commit()
                         
-                        if cat_event == "OK" and cat_values:
-                            new_category = cat_values["-Selected Category-"]
-                            c.execute('SELECT id FROM categories WHERE account=:account AND name=:name', {'name': new_category, 'account': new_acc})
-                            new_cat_id = c.fetchone()[0]
-                            if new_cat_id:
-                                c.execute("""UPDATE track_categories SET account=:new_account, category_id=:new_cat_id
-                                                    WHERE category_id=:old_cat_id AND account=:old_account""",
-                                      {'new_account': new_acc, 'old_account': old_acc, 'new_cat_id': new_cat_id, 'old_cat_id': row_cat_id})
-                                c.execute("""UPDATE transactions SET account=:new_account, category_id=:new_cat_id
-                                                    WHERE category_id=:old_cat_id AND account=:old_account""",
-                                      {'new_account': new_acc, 'old_account': old_acc, 'new_cat_id': new_cat_id, 'old_cat_id': row_cat_id})
-                                c.execute("DELETE FROM categories WHERE id=:old_cat_id", {'old_cat_id': row_cat_id})
-                                conn.commit()
-                                #delete_category(conn, c, old_cat_id)
-                                sg.popup(f'{row_name} was moved from {old_acc} to {new_acc}')
-                            else:
-                                sg.popup(f'failed to move and delete category')
-                    elif event == 'Update Name' and old_cat_name != 'Unallocated Cash':
-                        # Change category name
-                        new_cat = values['-Edit Category-']
-                        c.execute("SELECT name FROM categories WHERE name=:name AND account=:account", {'name': new_cat, 'account': old_acc})
-                        category_flag = c.fetchall()
+                                # Selects an account and category
+                                c.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND date=:date",
+                                  {'category_id': row_cat_id, 'date': track_date})
+                                tracking_funds = c.fetchone()
+                    
+                                # moves funds from 'Unallocated Cash' to desired category
+                                move_flag = True 
+                                if tracking_funds:
+                                    tracking_funds = list(tracking_funds)
+                                    tracking_funds[2] += move_funds 
+                                else:
+                                    move_flag = False
+
+                                if move_flag:
+                                    update_category_budget(conn, c, tracking_funds)
+                                    sg.popup(f'Successful\n{selected_category} + {move_funds} ')
+                                else:
+                                    sg.popup(f'Unsuccessful transfer')
+                                    
+                    if event == 'Edit Category':
+                        category_menu = make_category_menu(conn, c, selected_account, True)
+                        edit_event, values = edit_category_win(sg, category_row, category_menu).read(close=True)
                         
-                        if not category_flag and new_cat and row_cat_id:
-                            c.execute("""UPDATE categories SET name=:new_category
+                        if edit_event == "Update":
+                        																				# Move Data and Delete old Category
+                            new_category = values['-Edit Category-']
+                            if new_category in (None, row_name) or not row_cat_id:
+                                sg.popup(f'failed to edit category')
+                            elif new_category in category_menu :
+                                delete_category(conn, c, new_category, selected_account, row_cat_id)
+                                sg.popup(f'{row_name} was moved and deleted')
+                            else: 																		# Change category name
+                                c.execute("""UPDATE categories SET name=:new_category
                                                         WHERE id=:id""",
-                                          {'id': row_cat_id, 'new_category': new_cat})
-                            conn.commit()
-                            sg.popup(f'{row_name} category name was changed to {new_cat}')
-                        else:
-                            sg.popup(f'Could not change name for category')
+                                               {'id': row_cat_id, 'new_category': new_category})
+                                conn.commit()
+                                sg.popup(f'{row_name} category name was changed to {new_category}')
 
 
 
