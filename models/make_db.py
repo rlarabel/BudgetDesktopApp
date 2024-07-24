@@ -48,7 +48,6 @@ def make_track_categories_db(conn, cursor):
 
         conn.commit()
 
-#TODO: Fix primary key to be and id or account and name
 def make_category_db(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE categories (

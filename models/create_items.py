@@ -1,5 +1,4 @@
-from models.update_items import update_funds
-
+from datetime import datetime
 
 def make_total_funds (conn, cursor):
     grand_total = 0
@@ -52,13 +51,19 @@ def add_new_account(conn, cursor, data):
         conn.commit()
 
 
-def add_new_category(conn, cursor, data):
+def add_new_category(conn, cursor, data, category_id=None):
     with conn:
+        # Checking for a parent account and duplicate categories 
         cursor.execute("SELECT * FROM accounts WHERE name=:name", {'name': data['-Account name-']})
         parent_account = cursor.fetchone()
-
+        cursor.execute("SELECT * FROM categories WHERE name=:name AND account=:account", {'name': data['-New category-'], 'account': data['-Account name-']})
+        duplicate_category = cursor.fetchone()
+        if parent_account == None or duplicate_category != None:
+            return
+        
+        # Adding the row if both checks pass
         new_row = {
-            'id': None,
+            'id': category_id,
             'name': data['-New category-'],
             'account': parent_account[0]
         }
@@ -66,7 +71,7 @@ def add_new_category(conn, cursor, data):
         conn.commit()
 
 
-def add_transaction(conn, cursor, data, sel_account):
+def add_transaction(conn, cursor, data, sel_account, trans_id=None):
     with conn:
     	# Formatting User Input Date and Total
         input_month = int(data['-Month-'])
@@ -80,6 +85,13 @@ def add_transaction(conn, cursor, data, sel_account):
         else:
             input_day = str(data['-Day-'])
         user_date = str(data['-Year-']) + '-' + input_month + '-' + input_day
+        # Checks to make sure date is accurate
+        try:
+            date_object = datetime.strptime(user_date, '%Y-%m-%d')
+        except ValueError:
+            # TODO: return error message
+            return
+        date = date_object.strftime('%Y-%m-%d')
         user_total = round(float(data['-Trans total-']), 2)        
         category_id = None
         
@@ -91,17 +103,16 @@ def add_transaction(conn, cursor, data, sel_account):
             if category_id:
                 cursor.execute("""INSERT INTO transactions VALUES 
                                 (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                               {'id': None, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
+                               {'id': trans_id, 'date': date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
                                 'total': user_total, 'account': sel_account, 'category_id': category_id})
         # Income Transaction
         else:
             cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", {'name': 'Unallocated Cash', 'account': sel_account})
             category_id = cursor.fetchone()[0]
-            print(category_id)
             if category_id:
                 cursor.execute("""INSERT INTO transactions  VALUES 
                                             (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                           {'id': None, 'date': user_date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
+                           {'id': trans_id, 'date': date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
                             'total': user_total, 'account': sel_account, 'category_id': category_id})
 
         conn.commit()
