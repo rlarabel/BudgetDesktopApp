@@ -1,8 +1,8 @@
 import PySimpleGUI as sg
-from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, select_category
+from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, select_category, get_csv
 from views.budget_windows import move_funds_win, edit_track_acc_win, edit_account_win, edit_category_win, create_account_win, create_category_win, move_funds_acc_win
-from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu, make_total_funds
-from models.sheets import set_row_colors, make_track_sheet, make_transaction_sheet, make_budget_sheet, set_track_row_colors
+from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu, make_total_funds, csv_entry
+from models.sheets import set_row_colors, make_track_sheet, make_transaction_sheet, make_budget_sheet, set_transaction_row_colors
 from models.update_items import update_funds, update_category_budget, update_transaction, update_account_track, pretty_print_date, update_month_combo
 from models.make_db import create_db_tables
 from models.delete_items import delete_account, delete_category
@@ -141,8 +141,9 @@ def main():
             transaction_win_active = True
             budget_win.Hide()
             transaction_sheet = make_transaction_sheet(conn, c)
-            transaction_win = create_transaction_window(sg, transaction_sheet, visible_columns_transactions)
-            keys_to_validate = ['-Year-', '-Month-', '-Day-', '-Trans total-']
+            transaction_row_colors = set_transaction_row_colors(conn, c)
+            transaction_win = create_transaction_window(sg, transaction_sheet, visible_columns_transactions, transaction_row_colors)
+            keys_to_validate = ['-Date-', '-Trans total-']
             total_funds = make_total_funds(conn, c)
             transaction_win[FUNDS].update(total_funds)
             
@@ -155,24 +156,46 @@ def main():
                 elif event == 'New Transaction':
                     # Gets desired account info before the next window
                     acc_event, acc_values = select_account(sg, account_menu).read(close=True)
-                    if acc_event == 'OK' and acc_values['-Account menu-']:
+                    if acc_values:
                         selected_account = acc_values['-Account menu-']
+                    else:
+                        selected_account = None
+                    if acc_event == 'Single Entry' and selected_account:
                         category_menu = make_category_menu(conn, c, selected_account)
                     	# New Transaction Window
-                        event, values = create_new_transaction(sg, category_menu).read(close=True)
+                        print(select_account)
+                        c.execute("SELECT date FROM transactions WHERE account=:account and notes<>:notes ORDER BY date DESC", {'account': selected_account, 'notes': 'TRANSFER'})
+                        latest_date = c.fetchone()
+                        if latest_date != None:
+                            latest_date = datetime.strptime(latest_date[0], '%Y-%m-%d')
+                            latest_date = latest_date.strftime('%m-%d-%Y')
+                        event, values = create_new_transaction(sg, category_menu, latest_date).read(close=True)
                         if event == 'Save':
+                            #TODO: validate like csv entry
                             set_transaction = True
                             for validate in keys_to_validate:
                                 if not values[validate]:
                                     set_transaction = False
                             if set_transaction:
-                                year = values['-Year-']
-                                month = values['-Month-']
-                                day = values['-Day-']
+                                user_date = values['-Date-']
                                 add_transaction(conn, c, values, selected_account)
-                                sg.popup(f"New transaction for {year}-{month}-{day}")
+                                sg.popup(f"New transaction for {user_date}")
                             else:
-                                sg.popup('Missing info: unable to update the transaction')
+                                sg.popup('Missing info: unable to add the transaction')
+                    elif acc_event == 'CSV Entry' and selected_account:
+                        #CSV Entry Window
+                        event, values = get_csv(sg).read(close=True)
+                        if event == 'OK':
+                            in_file = values['-IN-'] 
+                            csv_entry_flag = csv_entry(conn, c, selected_account, in_file)
+                            if csv_entry_flag == 1:
+                                sg.popup(f'CSV Entry Complete for {selected_account}')
+                            elif csv_entry_flag == -1: 
+                                sg.popup('Missing date or total: unable to add the transactions')
+                            elif csv_entry_flag == -2: 
+                                sg.popup('Inappropriate date: unable to add the transactions')
+                            elif csv_entry_flag == -3:
+                                sg.popup('Missing date and/or total header(s) in csv file: unable to add the transactions')
                 elif event == '-Trans table-':
                     transaction_row = None
                     if values['-Trans table-']:
@@ -207,7 +230,8 @@ def main():
                 if transaction_win_active:
                     transaction_win.BringToFront()
                     transaction_sheet = make_transaction_sheet(conn, c)
-                    transaction_win['-Trans table-'].update(transaction_sheet)
+                    transaction_row_colors = set_transaction_row_colors(conn, c)
+                    transaction_win['-Trans table-'].update(transaction_sheet, row_colors=transaction_row_colors)
                     total_funds = make_total_funds(conn, c)
                     transaction_win[FUNDS].update(total_funds)
 
@@ -337,14 +361,15 @@ def main():
                         edit_event, values = edit_category_win(sg, category_row, category_menu).read(close=True)
                         
                         if edit_event == "Update":
-                        																				# Move Data and Delete old Category
+                        	# Move Data and Delete old Category
                             new_category = values['-Edit Category-']
                             if new_category in (None, row_name) or not row_cat_id:
                                 sg.popup(f'failed to edit category')
                             elif new_category in category_menu :
                                 delete_category(conn, c, new_category, selected_account, row_cat_id)
                                 sg.popup(f'{row_name} was moved and deleted')
-                            else: 																		# Change category name
+                            else: 																		
+                                # Change category name
                                 c.execute("""UPDATE categories SET name=:new_category
                                                         WHERE id=:id""",
                                                {'id': row_cat_id, 'new_category': new_category})

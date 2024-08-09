@@ -220,15 +220,29 @@ def get_monthly_category_data(cursor, todays_date, budget_date, category_name, c
      
     return budget, progress, spending, total, upcoming_expenses  
 
+def set_transaction_row_colors(conn, cursor):
+    with conn:
+        row_color = []
+        i = 0
+        cursor.execute("SELECT category_id, total, notes FROM transactions ORDER BY date DESC")
+        for category_id, total, notes in cursor.fetchall():
+            cursor.execute("SELECT name FROM categories WHERE id=:id", {'id': category_id})
+            category_name = cursor.fetchone()[0]
+            if(notes != 'TRANSFER'):
+                if(category_name == 'Unallocated Cash' and total < 0):
+                    row_color.append((i, 'navy blue', 'red'))
+                elif(i % 2 == 0):
+                    row_color.append((i, 'white', '#7f8f9f'))
+                i += 1
+
+        return row_color
 
 def set_row_colors(conn, cursor, unallocated_cash_info):
     with conn:
         account_color = []
         i = 0
         cursor.execute("SELECT * FROM accounts WHERE type=:spending OR type=:income ", {'spending': 'spending', 'income': 'income'})
-        print(unallocated_cash_info)
         for account in cursor.fetchall():
-            print(account)
             color_info = None
             j = 0
             while not color_info and len(unallocated_cash_info) > j:
@@ -242,9 +256,11 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
             else:
                 account_color.append((i, 'navy blue', 'grey'))
             i += 1
-            cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
+            cursor.execute("SELECT name FROM categories WHERE account=:name", {'name': account[0]})
             for cat in cursor.fetchall():
-                print(cat)
+                if cat[0] != 'Unallocated Cash':
+                    if(i % 2 == 0):
+                        account_color.append((i, 'white', '#7f8f9f'))
                 i += 1
             if color_info['over allocated'] or color_info['uncategorized spending']:
                 account_color.append((i-1, 'navy blue', 'red'))
@@ -252,7 +268,6 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
                 account_color.append((i-1, 'navy blue', 'yellow'))
             else:
                 account_color.append((i-1, 'navy blue', 'green')) 
-        print(account_color)
         return account_color
 
 
@@ -273,6 +288,8 @@ def make_transaction_sheet(conn, cursor):
         all_transactions = cursor.fetchall()
         for transaction in all_transactions:
             id_num, date, payee, notes, total, account, category_id = transaction
+            date = datetime.strptime(date, '%Y-%m-%d')
+            date = date.strftime('%m-%d-%Y')
             cursor.execute("SELECT name FROM categories WHERE id=:category_id", {'category_id': category_id})
             category_name = cursor.fetchone()[0]
             if category_name == 'Unallocated Cash':

@@ -1,4 +1,5 @@
 from datetime import datetime
+import csv
 
 def make_total_funds (conn, cursor):
     grand_total = 0
@@ -6,7 +7,7 @@ def make_total_funds (conn, cursor):
         cursor.execute("SELECT total FROM transactions")
         for temp in cursor.fetchall():
            grand_total += temp[0]
-    return grand_total
+    return round(grand_total, 2)
 
 def make_category_menu(conn, cursor, account, edit_flag=False):
     with conn:
@@ -71,26 +72,27 @@ def add_new_category(conn, cursor, data, category_id=None):
         conn.commit()
 
 
-def add_transaction(conn, cursor, data, sel_account, trans_id=None):
+def add_transaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=True):
     with conn:
-    	# Formatting User Input Date and Total
-        input_month = int(data['-Month-'])
-        input_day = int(data['-Day-'])
-        if input_month < 10:
-            input_month = '0' + str(input_month)
-        else: 
-            input_month = str(input_month)
-        if input_day < 10:
-            input_day =  '0' + str(data['-Day-'])
-        else:
-            input_day = str(data['-Day-'])
-        user_date = str(data['-Year-']) + '-' + input_month + '-' + input_day
+        user_date = data['-Date-']
+        if user_date == None or data['-Trans total-'] == None:
+            return -1
         # Checks to make sure date is accurate
-        try:
-            date_object = datetime.strptime(user_date, '%Y-%m-%d')
-        except ValueError:
-            # TODO: return error message
-            return
+        formats = [
+            '%m-%d-%Y',
+            '%m/%d/%Y',
+            '%m-%d-%y',
+            '%m/%d/%y',
+        ]
+        date_object = None
+        for fmts in formats:
+            try:
+                date_object = datetime.strptime(user_date, fmts)
+            except ValueError:
+                continue
+        if not date_object:
+            # Return error for improper date
+            return -2
         date = date_object.strftime('%Y-%m-%d')
         user_total = round(float(data['-Trans total-']), 2)        
         category_id = None
@@ -114,5 +116,45 @@ def add_transaction(conn, cursor, data, sel_account, trans_id=None):
                                             (:id, :date, :payee, :notes, :total, :account, :category_id)""",
                            {'id': trans_id, 'date': date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
                             'total': user_total, 'account': sel_account, 'category_id': category_id})
+        if(commit_flag==True):
+            conn.commit()
+        return 1
 
-        conn.commit()
+def csv_entry(conn, cursor, account, filename):
+    date_column = -1 
+    payee_column = -1
+    notes_column = -1
+    total_column = -1
+    payee = None
+    notes = None
+    with open(filename, mode='r', newline='') as file:
+        csv_reader = csv.reader(file)
+        first_row = next(csv_reader)
+        for i, header in enumerate(first_row):
+            if header.lower() == 'date' or header.lower() == 'dates':
+                date_column = i
+            elif header.lower() == 'payee' or header.lower() == 'payees':
+                payee_column = i
+            elif header.lower() == 'note' or header.lower() == 'notes':
+                notes_column = i
+            elif header.lower() == 'total' or header.lower() == 'totals':
+                total_column = i
+        if date_column == -1 or total_column == -1:
+            return -3
+        for row in csv_reader:
+            date = row[date_column]
+            total = row[total_column]
+            if payee_column > -1:
+                payee = row[payee_column]
+            if notes_column > -1:
+                notes = row[notes_column]
+            data = {'-Trans total-': total, '-Payee-': payee, '-Notes-': notes, "-Date-": date, '-Selected Category-': 'Unallocated Cash'}
+            entry_flag = add_transaction(conn, cursor, data, account, None, False)
+            if entry_flag != 1:
+                print(data['-Trans total-'])
+                print(data['-Date-'])
+                return entry_flag
+
+    conn.commit()        
+    return 1    
+            

@@ -55,8 +55,29 @@ def update_account_track(conn, cursor, row):
 
 def update_transaction(conn, cursor, data, row_id, account_name):
     with conn:
-        user_date = str(data['-Year-']) + '-' + str(data['-Month-']) + '-' + str(data['-Day-'])
-        user_total = round(float(data['-Trans total-']), 2)
+        user_date = data['-Date-']
+        if user_date == None or data['-Trans total-'] == None:
+            return -1
+        # Checks to make sure date is accurate
+        formats = [
+            '%m-%d-%Y',
+            '%m/%d/%Y',
+            '%m-%d-%y',
+            '%m/%d/%y',
+        ]
+        date_object = None
+        for fmts in formats:
+            try:
+                date_object = datetime.strptime(user_date, fmts)
+            except ValueError:
+                continue
+        if not date_object:
+            # Return error for improper date
+            return -2
+        user_date = date_object.strftime('%Y-%m-%d')
+        user_total = round(float(data['-Trans total-']), 2)        
+        category_id = None
+        
         if user_total < 0:
             cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", {'name': data['-Selected Category-'], 'account': account_name})
             category_id = cursor.fetchone()[0]
@@ -77,6 +98,7 @@ def update_transaction(conn, cursor, data, row_id, account_name):
                             'total': user_total, 'account': account_name, 'category_id': category_id})
 
         conn.commit()
+        return 1
 
 
 def pretty_print_date(user_date, months):
