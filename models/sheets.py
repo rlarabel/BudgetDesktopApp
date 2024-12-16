@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil import relativedelta
-from itertools import zip_longest
+import numpy_financial as npf
+
 
 # Description: (In the works) Retirement planner
 # Input: 
@@ -76,7 +77,7 @@ def make_budget_sheet(conn, cursor, budget_date):
         todays_date = datetime.today().strftime("%Y-%m-%d")
         
         # Loop through all accounts 
-        cursor.execute("SELECT * FROM accounts WHERE type=:type", {'type': 'spending'})
+        cursor.execute("SELECT * FROM accounts WHERE type=:spending OR type=:bills", {'spending': 'spending', 'bills': 'bills'})
         for account in cursor.fetchall():
             uncat_spending_flag = False
             
@@ -241,7 +242,7 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
     with conn:
         account_color = []
         i = 0
-        cursor.execute("SELECT * FROM accounts WHERE type=:spending OR type=:income ", {'spending': 'spending', 'income': 'income'})
+        cursor.execute("SELECT * FROM accounts WHERE type=:spending OR type=:bills ", {'spending': 'spending', 'bills': 'bills'})
         for account in cursor.fetchall():
             color_info = None
             j = 0
@@ -301,3 +302,173 @@ def make_transaction_sheet(conn, cursor):
         if not table:
             table = [['', '', '', '', '', '', '']]
         return table
+
+def make_savings_sheet(conn, cursor, view_date):
+    with conn:
+        table = []
+        view_date = datetime.strptime(view_date, '%Y-%m')
+
+        cursor.execute("SELECT name FROM accounts WHERE type=:type", {'type': 'savings'})
+        savings_accounts = cursor.fetchall()
+        for account in savings_accounts:
+            name = account[0]
+            cursor.execute("SELECT interest, real_value FROM savings WHERE name=:name", {'name': name})
+            desired_apy, real_value = cursor.fetchone()
+            # TODO: Calculate the avg apy with the total deposit, real value, and basis
+            # TODO: Actual apy, total interest earned, total interest growth 
+            month_deposit, total_deposit, actual_apy, i_amount, total_i = calc_savings_data(cursor, view_date, name, real_value)
+            table.append([name, month_deposit, total_deposit, real_value, desired_apy, actual_apy, i_amount, total_i])
+        if not table:
+            return [['','','','','', '', '']]
+        else:
+            return table
+
+def calc_savings_data(cursor, view_date, name, real_value):
+    total_deposit = 0
+    month_deposit = 0
+    actual_apy = 0 
+    i_amount = 0 
+    total_i = 0
+    n_years = 0
+    oldest_date = None
+
+    cursor.execute("SELECT date, total FROM transactions WHERE account=:account", {'account': name})
+    for date, total in cursor.fetchall():
+        date = datetime.strptime(date, '%Y-%m-%d')
+
+        # Find the total deposit amount and the current viewing month's deposit amount
+        total_deposit += total
+        if date.month == view_date.month and date.year == view_date.year: 
+            month_deposit += total
+
+        # Find the oldest date to calc number of years
+        if not oldest_date:
+            oldest_date = date
+        elif oldest_date > date:
+            oldest_date = date
+        
+    delta = datetime.today() - oldest_date
+    n_years = delta.days / 365.25
+    
+    # Find the actual apy
+    if n_years < 0.002 or total_deposit < 0.01:
+        actual_apy = 0.0 
+    else:
+        actual_apy = round((((real_value/total_deposit)**(1/n_years)) - 1) * 100, 3)
+    
+    # Find the total amount earned from interest
+    i_amount = round(real_value - total_deposit, 2) 
+    
+    # Find the total interest growth
+    if total_deposit < 0.01:
+        total_i = 0.0
+    else:
+        total_i = round((i_amount / total_deposit) * 100, 1)
+
+    return round(month_deposit, 2), round(total_deposit, 2), actual_apy, i_amount, total_i 
+            
+def make_asset_sheet(conn, cursor):
+    # TODO: do calculations with the given value to find present worth of the asset and check where you are at with your loan,
+    # Take initial loan amount (<= 0) and calculate the payment amount needed to reach desired payoff date.
+    # To calculate payment amount grab initial loan amount and all payments so far from transactions, and the loan interest and desired payoff date from assets  
+    # Find the present worth of the asset - initial value? (pv), MARR (i), estimated yearly expenses/profits (pyt), Estimated sell value (fv), estimated years to own (n)
+    # Headers: 'Account', 'Present Loan Amount ($)', 'total interest paid ($)', 'monthly payments needed ($)' 'Desired Pay Off Date', ' Calculated Present Worth ($)'
+    with conn:
+        table = []
+
+        cursor.execute("SELECT name FROM accounts WHERE type=:type", {'type': 'asset'})
+        asset_accounts = cursor.fetchall()
+        for account in asset_accounts:
+            name = account[0]
+            cursor.execute("SELECT total FROM transactions WHERE account=:name", {'name': name})
+            amt = cursor.fetchone()[0]
+            pw1, pw2 = calc_asset_data(cursor, name)
+            table.append([name, -amt, pw1, pw2])
+    if table:
+        return table
+    else:
+        return [['','','','']]
+
+def calc_asset_data(cursor, name):
+    pw1 = 0
+    pw2 = 0
+    cursor.execute("SELECT * FROM assets WHERE name=:name", {'name': name})
+    _, _, i_1, amt_1, pv_1, fv_1, date_1, i_2, amt_2, pv_2, fv_2, date_2 = cursor.fetchone()
+    # Calculate Present Worth 1
+    if i_1 and pv_1 and fv_1 and date_1:
+        cursor.execute("SELECT date FROM transactions WHERE account=:name", {'name': name})
+        date = cursor.fetchone()[0]
+        start_date = datetime.strptime(date, '%Y-%m-%d')
+        end_date = datetime.strptime(date_1, '%Y-%m-%d')
+        delta = end_date - start_date
+        n_years = delta.days / 365.25
+        pw1 += pv_1
+        if not amt_1:
+            amt_1 = 0
+        pw1 += npf.pv(i_1/100, n_years, -amt_1, -fv_1)
+        pw1 = round(pw1, 2)
+    else:
+        pw1 = None
+
+    # Calculate Present Worth 2
+    if i_2 and pv_2 and fv_2 and date_2:
+        cursor.execute("SELECT date FROM transactions WHERE account=:name", {'name': name})
+        date = cursor.fetchone()[0]
+        start_date = datetime.strptime(date, '%Y-%m-%d')
+        end_date = datetime.strptime(date_2, '%Y-%m-%d')
+        delta = end_date - start_date
+        n_years = delta.days / 365.25
+        pw2 += pv_2
+        if not amt_2:
+            amt_2 = 0
+        pw2 += npf.pv(i_2/100, n_years, -amt_2, -fv_2)
+        pw2 = round(pw2, 2)
+    else:
+        pw2 = None
+
+    return pw1, pw2
+
+def make_loan_sheet(conn, cursor, view_date):
+    # TODO: do calculations with the given value to find present worth of the asset and check where you are at with your loan,
+    # Take initial loan amount (<= 0) and calculate the payment amount needed to reach desired payoff date.
+    # To calculate payment amount grab initial loan amount and all payments so far from transactions, and the loan interest and desired payoff date from assets  
+    # Find the present worth of the asset - initial value? (pv), MARR (i), estimated yearly expenses/profits (pyt), Estimated sell value (fv), estimated years to own (n)
+    # Headers: 'Account', 'Present Loan Amount ($)', 'total interest paid ($)', 'monthly payments needed ($)' 'Desired Pay Off Date', ' Calculated Present Worth ($)'
+    with conn:
+        table = []
+
+        cursor.execute("SELECT name FROM accounts WHERE type=:type", {'type': 'loan'})
+
+        for account in cursor.fetchall():
+            name = account[0]
+            cursor.execute("SELECT interest, end_date, present_amt FROM loans WHERE name=:name", {'name': name})
+            interest, end_date, present_loan_amount = cursor.fetchone()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            initial_loan_amt, monthly_pmt = calculate_loan_data(cursor, name, interest, end_date)
+            table.append([initial_loan_amt, present_loan_amount, interest, end_date.strftime('%m-%d-%Y'), monthly_pmt])
+    return [['','','','','']]
+
+def calculate_loan_data(cursor, name, interest, end_date, present_loan_amount):
+    cursor.execute("SELECT total, date FROM transactions WHERE account=:account", {"account": name})
+    initial_date = None
+    total_pmt = 0
+    initial_loan_amt = 0
+    
+    # total interest paid: (initial loan amount - present loan amount) + sum(total pmt)
+    # monthly pmt: present_loan_amount = pv, payoff date - today date (in years) = n, loan_i = i, monthly_pmt = pmt
+    for total, t_date in cursor.fetchall():
+        t_date = datetime.strptime(t_date, '%Y-%m-%d')
+        if not initial_date:
+            initial_date = t_date
+            initial_loan_amt = total
+        elif initial_date > t_date:
+            initial_date = t_date
+            initial_loan_amt = total
+        total_pmt += total
+    # TODO: incorporate later
+    # total_pmt = total_pmt - initial_loan_amt 
+    # total_interest_paid = (initial_loan_amt - present_loan_amount) + total_pmt
+    delta = end_date - datetime.today()
+    n_months = (delta.days / 365.25) * 12
+    monthly_pmt = npf.amt(interest / (100 * 12), n_months, present_loan_amount, 0)
+    return initial_loan_amt, monthly_pmt

@@ -11,8 +11,11 @@ def edit_account_win(sg, account_info, menu):
 
 def create_account_win(sg):
     layout = [[sg.Text('New Account Info', font='Any 15')],
-              [sg.Text('Account Type:'), sg.Radio('Spending/Bill Funds', "Account Type:", default=True, k='-Spending account-'),
-               sg.Radio('Invesment/Saving Funds', "Account Type:", default=False, k='-Investment account-')],
+              [sg.Text('Account Type:'), sg.Radio('Spending', "Account Type:", default=True, k='-Spending account-'),
+               sg.Radio('Bills', "Account Type:", default=False, k='-Bills account-'),
+               sg.Radio('Savings', "Account Type:", default=False, k='-Savings account-'),
+               sg.Radio('Asset', "Account Type:", default=False, k='-Asset account-'),
+               sg.Radio('Loan', "Account Type:", default=False, k='-Loan account-')],
               [sg.Input(key='-New account-')],
               [sg.Button('Save'), sg.Button('Exit')]]
 
@@ -20,7 +23,7 @@ def create_account_win(sg):
 
     return window
 
-
+# TODO: give ability to change types
 def edit_category_win(sg, category_info, menu):
     layout = [[sg.Column([[sg.Text('Rename Or Move Category', font='Any 15')],
                           [sg.Combo(values=menu, k='-Edit Category-', default_value=category_info[1])],

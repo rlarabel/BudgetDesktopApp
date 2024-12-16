@@ -33,7 +33,6 @@ def select_category(sg, cat_menu):
 
     return window   
     
-#TODO: Add a calendar for the dates
 def create_new_transaction(sg, category_menu, latest_date):
     layout = [[sg.Column([[sg.Text('Date')],
                           [sg.Input(k='-Date-', size=(10, 1), default_text=latest_date), sg.CalendarButton('Choose Date', target='-Date-', format='%m-%d-%Y')]]),
@@ -48,7 +47,6 @@ def create_new_transaction(sg, category_menu, latest_date):
 
     return window
 
-#TODO: Add a calendar for the dates
 def edit_transaction_window(sg, edit_row, category, category_menu):
     row_id, date, payee, notes, total, account, _ = edit_row
     date = datetime.strptime(date, '%Y-%m-%d')

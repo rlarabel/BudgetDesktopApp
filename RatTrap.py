@@ -1,10 +1,11 @@
 import PySimpleGUI as sg
-from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, select_category, get_csv
-from views.budget_windows import move_funds_win, edit_track_acc_win, edit_account_win, edit_category_win, create_account_win, create_category_win, move_funds_acc_win
+from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, get_csv
+from views.budget_windows import move_funds_win, edit_account_win, edit_category_win, create_account_win, create_category_win, move_funds_acc_win
+from views.investment_windows import create_savings_window, edit_asset_win, edit_pw_win, create_savings_acc_win, edit_savings_win, create_loan_acc_win, create_loans_assets_window, create_asset_acc_win
 from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu, make_total_funds, csv_entry
-from models.sheets import set_row_colors, make_track_sheet, make_transaction_sheet, make_budget_sheet, set_transaction_row_colors
-from models.update_items import update_funds, update_category_budget, update_transaction, update_account_track, pretty_print_date, update_month_combo
-from models.make_db import create_db_tables
+from models.sheets import set_row_colors, make_transaction_sheet, make_budget_sheet, set_transaction_row_colors, make_savings_sheet, make_asset_sheet, make_loan_sheet
+from models.update_items import update_category_budget, update_transaction, pretty_print_date, update_savings_acc, update_asset
+from models.make_db import create_db_tables, delete_savings_db, delete_assets_db, delete_loans_db
 from models.delete_items import delete_account, delete_category
 import sqlite3
 
@@ -28,6 +29,7 @@ def main():
     # user_path = os.environ['USERPROFILE']
     # **************************************
     
+    
     # ***** Uncomment for Linux ************
     user_path = os.path.expanduser( '~' )
     # **************************************
@@ -39,6 +41,7 @@ def main():
     conn = sqlite3.connect(app_path)
     conn.execute("PRAGMA foreign_keys = ON")
     c = conn.cursor()
+    delete_loans_db(conn, c) # TODO: Delete after testing
     create_db_tables(conn, c)
 	    
     visible_columns_transactions = [False, True, True, True, True, True, True]
@@ -47,13 +50,13 @@ def main():
     view_date = datetime.now().strftime("%Y-%m")
     
     account_menu = make_account_menu(conn, c)
-    #track_menu = make_account_menu(conn, c, 'track')
     budget_sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
-    track_sheet = make_track_sheet(conn, c, view_date, all_months)
     menu_def = [['&New', ['Add Account', 'Add Category']],
-                ['&Views', ['&Transactions']]]
+                ['&Views', ['&Transactions', 'Savings', 'Loans\\Assets']]]
 
     # Layout definition
+    # TODO: add a help menu
+    # TODO: Add a dynamic 50/40/10 sg.Text
     budget_layout = [
         [sg.Menu(menu_def, key='-MENU-')],
         [sg.Text('Account Window', justification='center', size=(67, 1), font='Any 15')],
@@ -64,16 +67,13 @@ def main():
                   headings=['Category ID','Name', 'Budget', 'Upcoming Expenses', 'Spendings' , 'Budget left', 'Available'],
                   row_colors=set_row_colors(conn, c, unallocated_cash_info), enable_events=True, justification='left',
                   col_widths=[0, 30, 12, 13, 13, 13, 12], font='Any 11', num_rows=13, visible_column_map=visible_columns_budget)]]
-        
-        #TODO: Make another view for investment accounts
-        #[sg.Table(track_sheet, key='-Track table-', auto_size_columns=False,
-        #          headings=['Account Name', 'Monthly Funds', 'Total Funds', 'Total', 'To Reach Goal', 'By Date'],
-        #          enable_events=True, col_widths=[20, 16, 13, 10, 13, 11], font='Any 11', num_rows=8,
-        #          row_colors=set_track_row_colors(conn, c))]]
 
     # Create windows
+    #TODO: put make budget window in views.budget_window in a function called create_budget_win 
     budget_win = sg.Window('Rat Trap - Money Tracker', budget_layout, finalize=True, resizable=True)
     transaction_win_active = False
+    savings_win_active = False
+    loan_asset_win_active = False
     
     # Updates the window with default Values
     budget_win['View date'].update(pretty_print_date(view_date, all_months))
@@ -92,13 +92,39 @@ def main():
                 existing_acc = c.fetchone()
                 if values['-Spending account-']:
                     account_type = 'spending'
+                    data =[create_acc, account_type]
+                elif values['-Bills account-']:
+                    account_type = 'bills'
+                    data = [create_acc, account_type]
+                elif values['-Savings account-']:
+                    account_type = 'savings'
+                    savings_event, savings_values = create_savings_acc_win(sg).read(close=True)
+                    if savings_event == 'OK':
+                        data = [create_acc, account_type, savings_values['-Initial Deposit-'], 
+                                savings_values['-Interest-'], savings_values['-Date-']]
+                    else:
+                        data = None
+                elif values['-Asset account-']:
+                    account_type = 'asset'
+                    asset_event, asset_values = create_asset_acc_win(sg).read(close=True)
+                    if asset_event == 'OK':
+                        data = [create_acc, account_type, asset_values['-amt-'], asset_values['-Date-']]
+                    else:
+                        data = None
                 else:
-                	#TODO: Set up investment accounts
-                    #account_type = 'investment'
-                    account_type = 'spending' 
-                if not existing_acc and create_acc:
-                    add_new_account(conn, c, [create_acc, account_type])
-                    sg.popup(f'Successfully created {create_acc}')
+                    account_type = 'loan'
+                    loan_event, loan_values = create_loan_acc_win(sg).read(close=True)
+                    if loan_event == 'OK':
+                        data = [create_acc, account_type, loan_values['-Loan-'], loan_values['-Interest-'], 
+                                loan_values['-Start Date-'], loan_values['-End Date-']]
+                    else:
+                        data = None
+                
+                if not existing_acc and create_acc and data:
+                    if add_new_account(conn, c, data) == 1:
+                        sg.popup(f'Successfully created {create_acc}')
+                    else: 
+                        sg.popup(f'There is missing info needed to create the account')    
                 elif existing_acc:
                     sg.popup(f'There is already an existing {create_acc}')
                 elif not create_acc:
@@ -108,7 +134,8 @@ def main():
             event, values = create_category_win(sg, account_menu).read(close=True)
             if event == 'Save':
                 create_cat = values['-New category-']
-                c.execute("SELECT * FROM categories WHERE name=:name AND account=:account", {'name': create_cat, 'account':values['-Account name-']})
+                c.execute("SELECT * FROM categories WHERE name=:name AND account=:account", 
+                          {'name': create_cat, 'account':values['-Account name-']})
                 existing_cat = c.fetchone()
                 if not existing_cat and create_cat and values['-Account name-']:
                     add_new_category(conn, c, values)
@@ -117,7 +144,7 @@ def main():
                     sg.popup(f'There is already an existing {create_cat}')
                 elif not create_cat or not values['-Account name-']:
                     sg.popup(f'There is missing info needed to open a category')
-
+        # TODO: make a function and use datetime
         elif event in ('-Year-', '-Month-'):
             set_year, month_int = view_date.split('-')
             if values['-Month-']:
@@ -136,7 +163,136 @@ def main():
             if int_user_year and int_user_year < 2500 and int_user_year > 1800: 
                 set_year = values['-Year-']
             view_date = set_year + '-' + month_int
+        
+        elif event == 'Loans\\Assets' and not loan_asset_win_active:
+            loan_asset_win_active = True
+            budget_win.Hide()
+            loan_sheet = make_loan_sheet(conn, c, view_date)
+            asset_sheet = make_asset_sheet(conn, c)
+            loan_asset_win = create_loans_assets_window(sg, loan_sheet, asset_sheet, year_combo, all_months)
+            loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
+            
+            while loan_asset_win_active:
+                event, values = loan_asset_win.Read()
+                if event in ('Back To Accounts', None):
+                    loan_asset_win.Close()
+                    loan_asset_win_active = False
+                    budget_win.UnHide()
+                #TODO: make a function and use datetime
+                elif event in ('-Year-', '-Month-'):
+                    set_year, month_int = view_date.split('-')
+                    if values['-Month-']:
+                        for i, month in enumerate(all_months, 1):
+                            if values['-Month-'] == month:
+                                if i < 10:
+                                    month_int = '0' + str(i)
+                                else:
+                                    month_int = str(i)
+                    # Checks if the year given is an int and between 1800 - 2500
+                    try:
+                        int_user_year = int(values['-Year-'])
+                    except ValueError:
+                        int_user_year = None                
+            
+                    if int_user_year and int_user_year < 2500 and int_user_year > 1800: 
+                        set_year = values['-Year-']
+                    view_date = set_year + '-' + month_int
 
+                elif event == '-Loan table-' and values['-Loan table-']:
+                    pass
+                    # row_int = values['-Loan table-'][0]
+                    # savings_account_name = savings_sheet[row_int][0]
+                    # c.execute("SELECT * FROM savings WHERE name=:name", {"name" : savings_account_name})
+                    # _, state, desired_i, real_value = c.fetchone() 
+                    # event, values = edit_savings_win(sg, state, desired_i, real_value).read(close=True)
+                    # if event == 'Save':
+                    #     update_savings_acc(c, conn, sg, values, savings_account_name, desired_i, real_value, state)
+                        
+                        
+                elif event == '-Assets table-' and values['-Assets table-']:
+                    row_int = values['-Assets table-'][0]
+                    assets_name = asset_sheet[row_int][0]
+                    c.execute("SELECT * FROM assets WHERE name=:name", {"name" : assets_name})
+                    data = c.fetchone() 
+                    event, values = edit_asset_win(sg, data[0]).read(close=True)
+                    if event == 'Edit Present Worth 1':
+                        event, values = edit_pw_win(sg, data, 0).read(close=True)
+                        if event == 'Save':
+                            update_asset(c, conn, sg, values, data, 0)
+                    elif event == 'Edit Present Worth 2':
+                        event, values = edit_pw_win(sg, data, 1).read(close=True)
+                        if event == 'Save':
+                            update_asset(c, conn, sg, values, data, 1)
+                    elif event == 'Archive':
+                        # TODO: Add an archive
+                        pass
+                    elif event == 'Save':
+                        c.execute("SELECT name from accounts")
+                        taken_names = c.fetchall()
+                        if values['-Name-'] not in taken_names:
+                            c.execute("UPDATE accounts SET name=:new_name WHERE name=:name", 
+                                      {"new_name": values['-Name-'], "name": data[0]})
+                            conn.commit()
+                            sg.popup(f"Changed {data[0]} to {values['-Name-']}")
+                        else:
+                            sg.popup("Name already taken")
+                
+
+                if loan_asset_win_active:
+                    loan_asset_win.BringToFront()
+                    loan_sheet = make_loan_sheet(conn, c, view_date)
+                    asset_sheet = make_asset_sheet(conn, c)
+                    loan_asset_win['-Loans table-'].update(loan_sheet)
+                    loan_asset_win['-Assets table-'].update(asset_sheet)
+                    loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
+
+        elif event == 'Savings' and not savings_win_active:
+            savings_win_active = True
+            budget_win.Hide()
+            savings_sheet = make_savings_sheet(conn, c, view_date)
+            savings_win = create_savings_window(sg, savings_sheet, year_combo, all_months)
+            savings_win['View date'].update(pretty_print_date(view_date, all_months))
+            # TODO: add a archive
+            while savings_win_active:
+                event, values = savings_win.Read()
+                if event in ('Back To Accounts', None):
+                    savings_win.Close()
+                    savings_win_active = False
+                    budget_win.UnHide()
+                #TODO: make a function and use datetime
+                elif event in ('-Year-', '-Month-'):
+                    set_year, month_int = view_date.split('-')
+                    if values['-Month-']:
+                        for i, month in enumerate(all_months, 1):
+                            if values['-Month-'] == month:
+                                if i < 10:
+                                    month_int = '0' + str(i)
+                                else:
+                                    month_int = str(i)
+                    # Checks if the year given is an int and between 1800 - 2500
+                    try:
+                        int_user_year = int(values['-Year-'])
+                    except ValueError:
+                        int_user_year = None                
+            
+                    if int_user_year and int_user_year < 2500 and int_user_year > 1800: 
+                        set_year = values['-Year-']
+                    view_date = set_year + '-' + month_int
+
+                elif event == '-Savings table-' and values['-Savings table-']:
+                    row_int = values['-Savings table-'][0]
+                    savings_account_name = savings_sheet[row_int][0]
+                    c.execute("SELECT * FROM savings WHERE name=:name", {"name" : savings_account_name})
+                    _, state, desired_i, real_value = c.fetchone() 
+                    event, values = edit_savings_win(sg, state, desired_i, real_value).read(close=True)
+                    if event == 'Save':
+                        update_savings_acc(c, conn, sg, values, savings_account_name, desired_i, real_value, state)
+                        
+                if savings_win_active:
+                    savings_win.BringToFront()
+                    savings_sheet = make_savings_sheet(conn, c, view_date)
+                    savings_win['-Savings table-'].update(savings_sheet)
+                    savings_win['View date'].update(pretty_print_date(view_date, all_months))
         elif event == 'Transactions' and not transaction_win_active:
             transaction_win_active = True
             budget_win.Hide()
@@ -155,7 +311,8 @@ def main():
                     budget_win.UnHide()
                 elif event == 'New Transaction':
                     # Gets desired account info before the next window
-                    acc_event, acc_values = select_account(sg, account_menu).read(close=True)
+                    trans_acc_menu = make_account_menu(conn, c, ['spending', 'bills', 'savings'])
+                    acc_event, acc_values = select_account(sg, trans_acc_menu).read(close=True)
                     if acc_values:
                         selected_account = acc_values['-Account menu-']
                     else:
@@ -163,7 +320,6 @@ def main():
                     if acc_event == 'Single Entry' and selected_account:
                         category_menu = make_category_menu(conn, c, selected_account)
                     	# New Transaction Window
-                        print(select_account)
                         c.execute("SELECT date FROM transactions WHERE account=:account and notes<>:notes ORDER BY date DESC", {'account': selected_account, 'notes': 'TRANSFER'})
                         latest_date = c.fetchone()
                         if latest_date != None:
@@ -218,8 +374,11 @@ def main():
                                     set_transaction = False
 
                             if set_transaction:      # This is where the transaction is updated
-                                update_transaction(conn, c, values, trans_id, selected_account)
-                                sg.popup('Transaction was updated')
+                                check = update_transaction(conn, c, values, trans_id, selected_account)
+                                if check == 1:
+                                    sg.popup('Transaction was updated')
+                                else:
+                                    sg.popup(f'{check}: unable to update the transaction')
                             else:
                                 sg.popup('Missing info: unable to update the transaction')
                         elif event == 'Delete':
@@ -309,6 +468,8 @@ def main():
                     event, values = move_funds_win(sg, row_name).read(close=True)
                     if event == 'Update':
                         if values['-Move Funds-']:
+                            # TODO: When moving funds if spending is not covered in previous month allocate there first
+                            # TODO: Also if user try to subtract more than they have warn them 
                             move_funds = 0
                     
                             # Format view date for DB
@@ -370,22 +531,16 @@ def main():
                                 sg.popup(f'{row_name} was moved and deleted')
                             else: 																		
                                 # Change category name
-                                c.execute("""UPDATE categories SET name=:new_category
-                                                        WHERE id=:id""",
+                                c.execute("""UPDATE categories SET name=:new_category WHERE id=:id""",
                                                {'id': row_cat_id, 'new_category': new_category})
                                 conn.commit()
                                 sg.popup(f'{row_name} category name was changed to {new_category}')
 
-
-
         budget_win.BringToFront()
         account_menu = make_account_menu(conn, c)
-        track_menu = make_account_menu(conn, c, 'track')
         budget_win['View date'].update(pretty_print_date(view_date, all_months))
         budget_sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
         budget_win['-Table-'].update(budget_sheet, row_colors=set_row_colors(conn, c, unallocated_cash_info))
-        track_sheet = make_track_sheet(conn, c, view_date, all_months)
-        #budget_win['-Month-'].update(values=update_month_combo(all_months, view_date))
 
     budget_win.close()
     conn.close()
