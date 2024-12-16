@@ -428,7 +428,7 @@ def calc_asset_data(cursor, name):
 
     return pw1, pw2
 
-def make_loan_sheet(conn, cursor, view_date):
+def make_loan_sheet(conn, cursor):
     # TODO: do calculations with the given value to find present worth of the asset and check where you are at with your loan,
     # Take initial loan amount (<= 0) and calculate the payment amount needed to reach desired payoff date.
     # To calculate payment amount grab initial loan amount and all payments so far from transactions, and the loan interest and desired payoff date from assets  
@@ -444,9 +444,12 @@ def make_loan_sheet(conn, cursor, view_date):
             cursor.execute("SELECT interest, end_date, present_amt FROM loans WHERE name=:name", {'name': name})
             interest, end_date, present_loan_amount = cursor.fetchone()
             end_date = datetime.strptime(end_date, '%Y-%m-%d')
-            initial_loan_amt, monthly_pmt = calculate_loan_data(cursor, name, interest, end_date)
-            table.append([initial_loan_amt, present_loan_amount, interest, end_date.strftime('%m-%d-%Y'), monthly_pmt])
-    return [['','','','','']]
+            initial_loan_amt, monthly_pmt = calculate_loan_data(cursor, name, interest, end_date, present_loan_amount)
+            table.append([name, initial_loan_amt, present_loan_amount, interest, end_date.strftime('%m-%d-%Y'), monthly_pmt])
+        if table:
+            return table
+        else:
+            return [['','','','','','']]
 
 def calculate_loan_data(cursor, name, interest, end_date, present_loan_amount):
     cursor.execute("SELECT total, date FROM transactions WHERE account=:account", {"account": name})
@@ -470,5 +473,5 @@ def calculate_loan_data(cursor, name, interest, end_date, present_loan_amount):
     # total_interest_paid = (initial_loan_amt - present_loan_amount) + total_pmt
     delta = end_date - datetime.today()
     n_months = (delta.days / 365.25) * 12
-    monthly_pmt = npf.amt(interest / (100 * 12), n_months, present_loan_amount, 0)
-    return initial_loan_amt, monthly_pmt
+    monthly_pmt = npf.pmt(interest / (100 * 12), n_months, present_loan_amount, 0)
+    return initial_loan_amt, round(monthly_pmt, 2)

@@ -113,10 +113,11 @@ def make_assets_db(conn, cursor):
 def make_loans_db(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE loans (
-                    state INTEGER,
                     name TEXT PRIMARY KEY,
+                    state INTEGER,
                     interest REAL,
-                    end_date TEXT, 
+                    end_date TEXT,
+                    present_amt REAL, 
                     FOREIGN KEY(name)REFERENCES accounts(name)
                        ON UPDATE CASCADE
         )""")

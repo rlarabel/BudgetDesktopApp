@@ -17,14 +17,14 @@ def create_savings_window(sg, savings_sheet, year_combo, all_months):
     return window
 
 def create_loans_assets_window(sg, loans_sheet, assets_sheet, year_combo, all_months):
-    #TODO: add a help menu
+    #TODO: add a month to month loan\assets tracking
     layout = [
-        [sg.Text(size=(55, 1), key='View date', font='Any 11'),
-         sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((400, 1), (1, 1)), bind_return_key=True),
-         sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)],
+        #[sg.Text(size=(55, 1), key='View date', font='Any 11'),
+         #sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((400, 1), (1, 1)), bind_return_key=True),
+         #sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)],
         [sg.Text('Loans', justification='center', size=(83, 1), font='Any 15')],
         [sg.Table(loans_sheet, key='-Loans table-', auto_size_columns=False,
-                  headings=['Account', 'Monthly Pmt ($)', 'Total pmt ($)', 'Initial amt ($)', 'Present amt ($)', 'APY (%)', 'Est. Payoff Date'],
+                  headings=['Account', 'Initial amt ($)', 'Present amt ($)', 'APY (%)', 'Payoff Date', 'Monthly Pmt ($)'],
                   enable_events=True, justification='left',
                   col_widths=[10, 21, 19, 11, 13, 10, 15], font='Any 11', num_rows=8)],
         [sg.Text('Assets', justification='center', size=(45, 1), font='Any 15')],
@@ -35,7 +35,7 @@ def create_loans_assets_window(sg, loans_sheet, assets_sheet, year_combo, all_mo
         [sg.Button('Back To Accounts', button_color='grey')]
     ]
 
-    window = sg.Window('Savings Window', layout, finalize=True)
+    window = sg.Window('Loans & Assets Window', layout, finalize=True)
 
     return window
 

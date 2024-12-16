@@ -41,7 +41,7 @@ def main():
     conn = sqlite3.connect(app_path)
     conn.execute("PRAGMA foreign_keys = ON")
     c = conn.cursor()
-    delete_loans_db(conn, c) # TODO: Delete after testing
+    # delete_loans_db(conn, c) # TODO: Delete after testing
     create_db_tables(conn, c)
 	    
     visible_columns_transactions = [False, True, True, True, True, True, True]
@@ -167,10 +167,10 @@ def main():
         elif event == 'Loans\\Assets' and not loan_asset_win_active:
             loan_asset_win_active = True
             budget_win.Hide()
-            loan_sheet = make_loan_sheet(conn, c, view_date)
+            loan_sheet = make_loan_sheet(conn, c)
             asset_sheet = make_asset_sheet(conn, c)
             loan_asset_win = create_loans_assets_window(sg, loan_sheet, asset_sheet, year_combo, all_months)
-            loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
+            # loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
             
             while loan_asset_win_active:
                 event, values = loan_asset_win.Read()
@@ -179,24 +179,24 @@ def main():
                     loan_asset_win_active = False
                     budget_win.UnHide()
                 #TODO: make a function and use datetime
-                elif event in ('-Year-', '-Month-'):
-                    set_year, month_int = view_date.split('-')
-                    if values['-Month-']:
-                        for i, month in enumerate(all_months, 1):
-                            if values['-Month-'] == month:
-                                if i < 10:
-                                    month_int = '0' + str(i)
-                                else:
-                                    month_int = str(i)
-                    # Checks if the year given is an int and between 1800 - 2500
-                    try:
-                        int_user_year = int(values['-Year-'])
-                    except ValueError:
-                        int_user_year = None                
+                # elif event in ('-Year-', '-Month-'):
+                    # set_year, month_int = view_date.split('-')
+                    # if values['-Month-']:
+                    #     for i, month in enumerate(all_months, 1):
+                    #         if values['-Month-'] == month:
+                    #             if i < 10:
+                    #                 month_int = '0' + str(i)
+                    #             else:
+                    #                 month_int = str(i)
+                    # # Checks if the year given is an int and between 1800 - 2500
+                    # try:
+                    #     int_user_year = int(values['-Year-'])
+                    # except ValueError:
+                    #     int_user_year = None                
             
-                    if int_user_year and int_user_year < 2500 and int_user_year > 1800: 
-                        set_year = values['-Year-']
-                    view_date = set_year + '-' + month_int
+                    # if int_user_year and int_user_year < 2500 and int_user_year > 1800: 
+                    #     set_year = values['-Year-']
+                    # view_date = set_year + '-' + month_int
 
                 elif event == '-Loan table-' and values['-Loan table-']:
                     pass
@@ -240,11 +240,11 @@ def main():
 
                 if loan_asset_win_active:
                     loan_asset_win.BringToFront()
-                    loan_sheet = make_loan_sheet(conn, c, view_date)
+                    loan_sheet = make_loan_sheet(conn, c)
                     asset_sheet = make_asset_sheet(conn, c)
                     loan_asset_win['-Loans table-'].update(loan_sheet)
                     loan_asset_win['-Assets table-'].update(asset_sheet)
-                    loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
+                    #loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
 
         elif event == 'Savings' and not savings_win_active:
             savings_win_active = True

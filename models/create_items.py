@@ -139,9 +139,9 @@ def add_new_account(conn, cursor, data):
                     error_flag = -2
                 start_date = s_date_object.strftime('%Y-%m-%d')
                 end_date = e_date_object.strftime('%Y-%m-%d')
-                    
-                cursor.execute("INSERT INTO loans VALUES (:name, :state, :interest, :end_date)", 
-                               {'name': data[0], 'state': 'ACTIVE', 'interest': interest, 'end_date': end_date})
+                cursor.execute("INSERT INTO loans VALUES (:name, :state, :interest, :end_date, :present_amt)", 
+                               {'name': new_row_acc['name'], 'state': 'ACTIVE', 'interest': interest, 
+                                'end_date': end_date, 'present_amt': loan_amt})
                 cursor.execute("SELECT id FROM categories ORDER BY ID DESC")
                 category_id = cursor.fetchone()[0] + 1
                 cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", 
