@@ -39,14 +39,18 @@ def create_loans_assets_window(sg, loans_sheet, assets_sheet, year_combo, all_mo
 
     return window
 
-def edit_savings_win(sg, state, desired_i, real_value):
-    layout = [[sg.Column([[sg.Text('Desired Interest')],
-                          [sg.Input(k='-Interest-', size=(10, 1), default_text=desired_i)]]),
-               sg.Column([[sg.Text('Real Value')], [sg.Input(real_value, k='-Real Value-', s=(20, 5))]]),
-               sg.Column([[sg.Text('Basis')],
-                          [sg.Combo(values=('ACTIVE', 'ARCHIVE'), 
-                                    k='-State-', readonly=True, default_value=state)]])],
-              [sg.Button('Save'), sg.Button('Exit')]]
+def edit_savings_win(sg, name, desired_i, real_value):
+    layout = [
+        [
+            sg.Column([[sg.Text('Name')], [sg.Input(k='-Name-', size=(10, 1), default_text=name)]]),
+            sg.Column([[sg.Text('Desired Interest')],
+                       [sg.Input(k='-Interest-', size=(10, 1), default_text=desired_i)]]),
+            sg.Column([[sg.Text('Real Value')], [sg.Input(real_value, k='-Real Value-', s=(20, 5))]])
+        ],      
+        [
+            sg.Button('Save'), sg.Button('Archive'), sg.Button('Exit')
+        ]
+    ]
 
     window = sg.Window('Edit Savings Account', layout, keep_on_top=True, finalize=True)
 
@@ -104,7 +108,7 @@ def edit_asset_win(sg, name):
     layout = [[sg.Column([[sg.Text('Name')], [sg.Input(name, k='-Name-', size=(10,1))]]), sg.Button('Edit Present Worth 1'), sg.Button('Edit Present Worth 2')],
               [sg.Button('Save'), sg.Button('Archive'), sg.Button('Exit')]]
 
-    window = sg.Window('Edit Savings Account', layout, keep_on_top=True, finalize=True)
+    window = sg.Window('Edit Asset', layout, keep_on_top=True, finalize=True)
 
     return window
 
@@ -133,9 +137,34 @@ def edit_pw_win(sg, data, set):
                 ]
             ],
         ],
-        [sg.Button('Save'), sg.Button('Exit')]
+        [
+            sg.Button('Save'), sg.Button('Exit')
+        ]
     ]
 
     window = sg.Window("Edit the Asset's PW", layout, keep_on_top=True, finalize=True)
+
+    return window
+
+def edit_loan_win(sg, name, interest, end_date, present_amt):
+    layout = [
+        [
+            sg.Column([[sg.Text('Name')], [sg.Input(name, k='-Name-', size=(10,1))]]), 
+            sg.Column([[sg.Text('Interest')], [sg.Input(interest, k='-Interest-', size=(10,1))]]),
+            [
+                [sg.Text('Payoff Date')],
+                [
+                    sg.Input(end_date, k='-End Date-', size=(10, 1)), 
+                    sg.CalendarButton('Choose Date', target='-End Date-', format='%m-%d-%Y')
+                ]
+            ],
+            sg.Column([[sg.Text('Present Loan Amount')], [sg.Input(present_amt, k='-AMT-', size=(10,1))]])
+        ],      
+        [
+            sg.Button('Save'), sg.Button('Archive'), sg.Button('Exit')
+        ]
+    ]
+
+    window = sg.Window('Edit Loan', layout, keep_on_top=True, finalize=True)
 
     return window

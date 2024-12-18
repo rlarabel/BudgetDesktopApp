@@ -1,10 +1,10 @@
 import PySimpleGUI as sg
 from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, get_csv
 from views.budget_windows import move_funds_win, edit_account_win, edit_category_win, create_account_win, create_category_win, move_funds_acc_win
-from views.investment_windows import create_savings_window, edit_asset_win, edit_pw_win, create_savings_acc_win, edit_savings_win, create_loan_acc_win, create_loans_assets_window, create_asset_acc_win
+from views.investment_windows import create_savings_window, edit_asset_win, edit_pw_win, create_savings_acc_win, edit_savings_win, create_loan_acc_win, create_loans_assets_window, create_asset_acc_win, edit_loan_win
 from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu, make_total_funds, csv_entry
 from models.sheets import set_row_colors, make_transaction_sheet, make_budget_sheet, set_transaction_row_colors, make_savings_sheet, make_asset_sheet, make_loan_sheet
-from models.update_items import update_category_budget, update_transaction, pretty_print_date, update_savings_acc, update_asset
+from models.update_items import update_category_budget, update_transaction, pretty_print_date, update_savings_acc, update_asset, update_loan
 from models.make_db import create_db_tables, delete_savings_db, delete_assets_db, delete_loans_db
 from models.delete_items import delete_account, delete_category
 import sqlite3
@@ -178,7 +178,8 @@ def main():
                     loan_asset_win.Close()
                     loan_asset_win_active = False
                     budget_win.UnHide()
-                #TODO: make a function and use datetime
+                # TODO: Add back in for month to month tracking
+                # TODO: make a function and use datetime
                 # elif event in ('-Year-', '-Month-'):
                     # set_year, month_int = view_date.split('-')
                     # if values['-Month-']:
@@ -198,15 +199,20 @@ def main():
                     #     set_year = values['-Year-']
                     # view_date = set_year + '-' + month_int
 
-                elif event == '-Loan table-' and values['-Loan table-']:
+                elif event == '-Loans table-' and values['-Loans table-']:
                     pass
-                    # row_int = values['-Loan table-'][0]
-                    # savings_account_name = savings_sheet[row_int][0]
-                    # c.execute("SELECT * FROM savings WHERE name=:name", {"name" : savings_account_name})
-                    # _, state, desired_i, real_value = c.fetchone() 
-                    # event, values = edit_savings_win(sg, state, desired_i, real_value).read(close=True)
-                    # if event == 'Save':
-                    #     update_savings_acc(c, conn, sg, values, savings_account_name, desired_i, real_value, state)
+                    row_int = values['-Loans table-'][0]
+                    loan_name = loan_sheet[row_int][0]
+                    c.execute("SELECT * FROM loans WHERE name=:name", {"name" : loan_name})
+                    _, state, interest, end_date, present_amt = c.fetchone() 
+                    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+                    end_date = end_date_obj.strftime('%m-%d-%Y')
+                    event, values = edit_loan_win(sg, loan_name, interest, end_date, present_amt).read(close=True)
+                    if event == 'Save':
+                        update_loan(c, conn, sg, values, loan_name, interest, end_date_obj, present_amt)
+                    elif event == 'Archive':
+                        # TODO: Add an Archive
+                        pass
                         
                         
                 elif event == '-Assets table-' and values['-Assets table-']:
@@ -227,15 +233,17 @@ def main():
                         # TODO: Add an archive
                         pass
                     elif event == 'Save':
-                        c.execute("SELECT name from accounts")
+                        c.execute("SELECT name FROM accounts")
                         taken_names = c.fetchall()
-                        if values['-Name-'] not in taken_names:
+                        if values['-Name-'] == assets_name:
+                            pass
+                        elif (values['-Name-'],) in taken_names:
+                            sg.popup("Name already taken")
+                        else:
                             c.execute("UPDATE accounts SET name=:new_name WHERE name=:name", 
                                       {"new_name": values['-Name-'], "name": data[0]})
                             conn.commit()
                             sg.popup(f"Changed {data[0]} to {values['-Name-']}")
-                        else:
-                            sg.popup("Name already taken")
                 
 
                 if loan_asset_win_active:
@@ -244,7 +252,7 @@ def main():
                     asset_sheet = make_asset_sheet(conn, c)
                     loan_asset_win['-Loans table-'].update(loan_sheet)
                     loan_asset_win['-Assets table-'].update(asset_sheet)
-                    #loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
+                    # loan_asset_win['View date'].update(pretty_print_date(view_date, all_months))
 
         elif event == 'Savings' and not savings_win_active:
             savings_win_active = True
@@ -281,12 +289,15 @@ def main():
 
                 elif event == '-Savings table-' and values['-Savings table-']:
                     row_int = values['-Savings table-'][0]
-                    savings_account_name = savings_sheet[row_int][0]
-                    c.execute("SELECT * FROM savings WHERE name=:name", {"name" : savings_account_name})
+                    acc_name = savings_sheet[row_int][0]
+                    c.execute("SELECT * FROM savings WHERE name=:name", {"name" : acc_name})
                     _, state, desired_i, real_value = c.fetchone() 
-                    event, values = edit_savings_win(sg, state, desired_i, real_value).read(close=True)
+                    event, values = edit_savings_win(sg, acc_name, desired_i, real_value).read(close=True)
                     if event == 'Save':
-                        update_savings_acc(c, conn, sg, values, savings_account_name, desired_i, real_value, state)
+                        update_savings_acc(c, conn, sg, values, acc_name, desired_i, real_value, state)
+                    if event == 'Archive':
+                        # TODO: Add logic for archive
+                        pass
                         
                 if savings_win_active:
                     savings_win.BringToFront()
