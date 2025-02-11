@@ -89,9 +89,6 @@ def update_transaction(conn, cursor, data, row_id, account_name):
             else:
                 error_flag = sql_trans_update(cursor, row_id, user_date, data, 
                                             user_total, account_name, category_id, 'Unallocated Cash')
-        elif account_type == 'savings' or account_type == 'asset':
-                error_flag = sql_trans_update(cursor, row_id, user_date, data, 
-                                            user_total, account_name, category_id, 'Not Available')
         else:
             error_flag = -5
         
@@ -137,7 +134,7 @@ def update_month_combo(months, user_date):
 
     return combo
 
-def update_savings_acc(c, conn, sg, values, name, desired_i, real_value, state):
+def update_savings_acc(c, conn, sg, values, name, desired_i, amount, date, state):
     # Initial Variables
     base_str = "was updated"
     i_flag = 0
@@ -161,9 +158,9 @@ def update_savings_acc(c, conn, sg, values, name, desired_i, real_value, state):
                     {"interest": values['-Interest-'],"name": name})
         i_flag = 1
         base_str = "Interest " + base_str
-    if rv_flag == 0 and real_value != new_rv:
-        c.execute("UPDATE savings SET real_value=:real_value WHERE name=:name", 
-                    {"real_value": values['-Real Value-'],"name": name})
+    if rv_flag == 0 and amount != new_rv:
+        c.execute("UPDATE track_savings SET amount=:amount WHERE account=:account AND date=:date", 
+                    {"amount": values['-Real Value-'], "account": name, "date": date})
         rv_flag = 1
         base_str = "Real Value, " + base_str
     if name != new_name:
@@ -178,23 +175,62 @@ def update_savings_acc(c, conn, sg, values, name, desired_i, real_value, state):
 
     if i_flag == -1 or rv_flag == -1 or name_flag == -1:
         sg.popup("Error updating values")
-        conn.rollback
+        conn.rollback()
     elif i_flag == 1 or rv_flag == 1 or name_flag == 1:
         sg.popup(base_str)
         conn.commit()
 
-def update_asset(c, conn, sg, values, data, set):
+def update_asset(c, conn, sg, values, data, assets_name):
+    c.execute("SELECT name FROM accounts")
+    taken_names = c.fetchall()
+    initial_flag = 0
+    name_flag = 0
+    date_flag = 0
+    date = values['-Start Date-']
+    
+    try:
+        date = datetime.strptime(date, '%m-%d-%Y')
+    except ValueError:
+        date_flag = -1
+    date = date.strftime('%Y-%m-%d')
+    if date != data[2] and date_flag == 0:
+        c.execute("UPDATE assets SET initial_date=:date WHERE name=:name",
+                  {'date': date, 'name': data[0]})
+        date_flag = 1
+    if values['-Initial Amount-'] != data[2]:
+        c.execute("UPDATE assets SET initial_amount=:new_amt WHERE name=:name",
+                  {'new_amt': values['-Initial Amount-'], 'name': data[0]})
+        initial_flag = 1
+    if values['-Name-'] == assets_name:
+        pass
+    elif (values['-Name-'],) in taken_names:
+        sg.popup("Name already taken")
+    else:
+        c.execute("UPDATE accounts SET name=:new_name WHERE name=:name", 
+                    {"new_name": values['-Name-'], "name": data[0]})        
+        name_flag = 1
+
+    if name_flag == -1 or initial_flag == -1 or date_flag == -1:
+        conn.rollback()
+        sg.popup('Error updating')
+    if name_flag == 1 or initial_flag == 1 or date_flag == 1:
+        conn.commit()
+        sg.popup('Update Successful')
+        #sg.popup(f"Changed {data[0]} to {values['-Name-']}")
+    
+
+def update_asset_2(c, conn, sg, values, data, set):
     name = data[0]
     if set == 0:
-        i = data[2]
-        amt = data[3]
-        fv = data[5]
-        date = data[6]
+        i = data[4]
+        amt = data[5]
+        fv = data[7]
+        date = data[8]
     else:
-        i = data[7]
-        amt = data[8]
-        fv = data[10]
-        date = data[11]
+        i = data[9]
+        amt = data[10]
+        fv = data[12]
+        date = data[13]
 
     # Initial Variables
     base_str = "was updated"
@@ -257,18 +293,19 @@ def update_asset(c, conn, sg, values, data, set):
 
     if i_flag == -1 or fv_flag == -1 or amt_flag == -1 or date_flag == -1:
         sg.popup("Error updating values")
-        conn.rollback
+        conn.rollback()
     elif i_flag == 1 or fv_flag == 1 or amt_flag == 1 or date_flag == 1:
         sg.popup(base_str)
         conn.commit()
 
-def update_loan(c, conn, sg, values, name, interest, end_date_obj, present_amt):
+def update_loan(c, conn, sg, values, name, interest, start_date_obj, end_date_obj, initial_amount, present_amt):
     # Initial Variables
     base_str = "was updated"
     i_flag = 0
     amt_flag = 0
     date_flag = 0
     name_flag = 0
+    initial_amt_flag = 0
     
     # Validate User Input
     try:
@@ -282,8 +319,14 @@ def update_loan(c, conn, sg, values, name, interest, end_date_obj, present_amt):
     try:
         date_obj = datetime.strptime(values['-End Date-'], '%m-%d-%Y')
         new_date = date_obj.strftime('%Y-%m-%d')
+        date_obj = datetime.strptime(values['-Start Date-'], '%m-%d-%Y')
+        new_start_date = date_obj.strftime('%Y-%m-%d')
     except ValueError:
         date_flag = -1
+    try:
+        new_initial_amt = float(values['-Initial Amount-'])
+    except ValueError:
+        initial_amt_flag = -1
 
     new_name = values['-Name-']
 
@@ -301,6 +344,10 @@ def update_loan(c, conn, sg, values, name, interest, end_date_obj, present_amt):
         c.execute("UPDATE loans SET end_date=:date WHERE name=:name", {"date": new_date, "name": name})
         date_flag = 1
         base_str = "Payoff date, " + base_str
+    if date_flag == 0 and end_date_obj != date_obj:
+        c.execute("UPDATE loans SET start_date=:date WHERE name=:name", {"date": new_start_date, "name": name})
+        date_flag = 1
+        base_str = "Start date, " + base_str
     if name != new_name:
         c.execute("SELECT name FROM accounts")
         taken_names = c.fetchall()
@@ -310,10 +357,14 @@ def update_loan(c, conn, sg, values, name, interest, end_date_obj, present_amt):
             base_str = "Name, " + base_str
         else:
             name_flag = -1
+    if initial_amt_flag == 0 and initial_amount != new_initial_amt:
+        c.execute("UPDATE loans SET initial_amount=:amt WHERE name=:name", {"amt": new_initial_amt, "name": name})
+        amt_flag = 1
+        base_str = "Present Loan Amt, " + base_str
 
-    if i_flag == -1 or amt_flag == -1 or date_flag == -1 or name_flag == -1:
+    if i_flag == -1 or amt_flag == -1 or date_flag == -1 or name_flag == -1 or initial_amt_flag == -1:
         sg.popup("Error updating values")
-        conn.rollback
-    elif i_flag == 1 or amt_flag == 1 or date_flag == 1 or name_flag == 1:
+        conn.rollback()
+    elif i_flag == 1 or amt_flag == 1 or date_flag == 1 or name_flag == 1 or initial_amt_flag == 1:
         sg.popup(base_str)
         conn.commit()

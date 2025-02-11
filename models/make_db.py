@@ -17,6 +17,8 @@ def create_db_tables(conn, cursor):
             make_assets_db(conn, cursor)
         if ('loans',) not in tables_list:
             make_loans_db(conn, cursor)
+        if ('track_savings',) not in tables_list:
+            make_track_savings_db(conn, cursor)
 
 
 def make_money_flow_db(conn, cursor):
@@ -82,7 +84,6 @@ def make_savings_db(conn, cursor):
                     name TEXT PRIMARY KEY,
                     state TEXT,
                     interest REAL NOT NULL,
-                    real_value REAL,
                     FOREIGN KEY(name)REFERENCES accounts(name)
                        ON UPDATE CASCADE
         )""")
@@ -94,6 +95,8 @@ def make_assets_db(conn, cursor):
         cursor.execute("""CREATE TABLE assets (
                     name TEXT PRIMARY KEY,
                     state TEXT,
+                    initial_date TEXT NOT NULL,
+                    initial_amount REAL NOT NULL,
                     interest_1 REAL, 
                     payment_1 REAL,
                     present_value_1 REAL,
@@ -116,14 +119,30 @@ def make_loans_db(conn, cursor):
                     name TEXT PRIMARY KEY,
                     state INTEGER,
                     interest REAL,
+                    start_date REAL NOT NULL,
                     end_date TEXT,
-                    present_amt REAL, 
+                    initial_amount NOT NULL,
+                    present_amt REAL NOT NULL, 
                     FOREIGN KEY(name)REFERENCES accounts(name)
                        ON UPDATE CASCADE
         )""")
 
         conn.commit()
 
+def make_track_savings_db(conn, cursor):
+    with conn:
+        cursor.execute(
+            """
+                CREATE TABLE track_savings (
+                    id INTEGER PRIMARY KEY,
+                    account TEXT,
+                    date TEXT,
+                    amount REAL,
+                    FOREIGN KEY(account)REFERENCES accounts(name)
+                       ON UPDATE CASCADE 
+                )
+            """
+        )
 def delete_savings_db(conn, cursor):
     with conn:
         cursor.execute("select name from sqlite_master where type = 'table'")

@@ -1,8 +1,14 @@
 def edit_account_win(sg, account_info, menu):
-    layout = [[sg.Column([[sg.Text('Rename Or Move Account', font='Any 15')],
-                          [sg.Combo(values=menu, k='-Edit account-', default_value=account_info[0])],
-                          [sg.Button('Update')]]),
-               sg.Button('Exit')]]
+    type_menu = ['spending', 'bills', 'income']
+    layout = [
+        [
+            [sg.Column([[sg.Text('Rename Or Move Account:', font='Any 15')],
+                       [sg.Combo(values=menu, k='-Edit account-', default_value=account_info[0])]]),
+            sg.Column([[sg.Text('Change Account Type:', font='Any 15')],
+                       [sg.Combo(values=type_menu, k='-Edit type-', readonly=True, default_value=account_info[1])]])],
+            [sg.Button('Update'), sg.Button('Exit')]
+        ]
+    ]
 
     window = sg.Window('Edit/Delete Account', layout, keep_on_top=True, finalize=True)
 
@@ -23,7 +29,6 @@ def create_account_win(sg):
 
     return window
 
-# TODO: give ability to change types
 def edit_category_win(sg, category_info, menu):
     layout = [[sg.Column([[sg.Text('Rename Or Move Category', font='Any 15')],
                           [sg.Combo(values=menu, k='-Edit Category-', default_value=category_info[1])],

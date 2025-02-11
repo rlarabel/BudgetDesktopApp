@@ -3,7 +3,7 @@ from datetime import datetime
 
 def create_transaction_window(sg, table, visible_columns, transaction_row_colors):
     layout = [[sg.Text('Transaction Window', justification='center', font='Any 15', size=(44, 1))],
-              [sg.Text('Gross Amount:'), sg.Text(size=(15, 1), key='-Funds-'),
+              [sg.Text('Liquid Possessions:'), sg.Text(size=(15, 1), key='-Funds-'),
                sg.Button('New Transaction', pad=((150, 1), (1, 1)))],
               [sg.Table(table, key='-Trans table-',
                         headings=['ID', 'Date', 'Account', 'Category', 'Payee',
