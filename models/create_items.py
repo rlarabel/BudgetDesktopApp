@@ -267,8 +267,10 @@ def add_transaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=
         if commit_flag==True and error_flag==1:
             conn.commit()
             return error_flag
-        else:
+        elif error_flag < 1:
             conn.rollback()
+            return error_flag
+        else:
             return error_flag
 
 def csv_entry(conn, cursor, account, filename):
