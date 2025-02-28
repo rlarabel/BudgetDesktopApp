@@ -1,4 +1,4 @@
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, get_csv
 from views.budget_windows import move_funds_win, edit_account_win, edit_category_win, create_account_win, create_category_win, move_funds_acc_win
 from views.investment_windows import create_savings_window, edit_asset_win, edit_pw_win, create_savings_acc_win, edit_savings_win, create_loan_acc_win, create_loans_assets_window, create_asset_acc_win, edit_loan_win
@@ -30,12 +30,12 @@ def main():
     # Connecting to the Database
     
     # ***** Uncomment for WINDOWS **********
-    # user_path = os.environ['USERPROFILE']
+    user_path = os.environ['USERPROFILE']
     # **************************************
     
     
     # ***** Uncomment for Linux ************
-    user_path = os.path.expanduser( '~' )
+    # user_path = os.path.expanduser( '~' )
     # **************************************
     app_data_path = user_path + '/AppData/Local/RatTrap'
     location_exist = os.path.exists(app_data_path)
