@@ -1,6 +1,5 @@
 from datetime import datetime
 
-
 def update_funds(conn, cursor):
     with conn:
         cursor.execute("SELECT * FROM money_flow")
@@ -368,3 +367,13 @@ def update_loan(c, conn, sg, values, name, interest, start_date_obj, end_date_ob
     elif i_flag == 1 or amt_flag == 1 or date_flag == 1 or name_flag == 1 or initial_amt_flag == 1:
         sg.popup(base_str)
         conn.commit()
+
+def set_budget_headings(today, view_date):
+    if today.month >= view_date.month and today.year >= view_date.year:
+        temp = 'Budget Left'
+    else:
+        temp = 'Spendings Covered'
+    
+    headings = ['Category ID', 'Name', 'Pre-set Budget', 'Spent', 'Budget', temp]
+    
+    return headings

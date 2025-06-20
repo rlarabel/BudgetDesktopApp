@@ -1,11 +1,11 @@
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 from views.transaction_windows import create_transaction_window, create_new_transaction, edit_transaction_window, select_account, get_csv
 from views.budget_windows import move_funds_win, edit_account_win, edit_category_win, create_account_win, create_category_win, move_funds_acc_win
 from views.investment_windows import create_savings_window, edit_asset_win, edit_pw_win, create_savings_acc_win, edit_savings_win, create_loan_acc_win, create_loans_assets_window, create_asset_acc_win, edit_loan_win
 from views.visual_windows import create_visual_win
 from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu, make_total_funds, csv_entry
 from models.sheets import set_row_colors, make_transaction_sheet, make_budget_sheet, set_transaction_row_colors, make_savings_sheet, make_asset_sheet, make_loan_sheet
-from models.update_items import update_category_budget, update_transaction, pretty_print_date, update_savings_acc, update_asset, update_asset_2, update_loan
+from models.update_items import update_category_budget, update_transaction, pretty_print_date, update_savings_acc, update_asset, update_asset_2, update_loan, set_budget_headings
 from models.make_db import create_db_tables, delete_savings_db, delete_assets_db, delete_loans_db
 from models.delete_items import delete_account, delete_category
 from models.visualize_data import add_fig
@@ -50,9 +50,11 @@ def main():
     create_db_tables(conn, c)
 	    
     visible_columns_transactions = [False, True, True, True, True, True, True]
-    visible_columns_budget = [False, True, True, True, True, True, True]
+    visible_columns_budget = [False, True, True, True, True, True]
     
-    view_date = datetime.now().strftime("%Y-%m")
+    today = datetime.now()
+    view_date_obj = today
+    view_date = today.strftime("%Y-%m")
     
     account_menu = make_account_menu(conn, c)
     budget_sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
@@ -69,9 +71,9 @@ def main():
          sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
          sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)],
         [sg.Table(budget_sheet, key='-Table-', auto_size_columns=False,
-                  headings=['Category ID','Name', 'Budget', 'Upcoming Expenses', 'Spendings' , 'Budget left', 'Available'],
+                  headings=set_budget_headings(today, view_date_obj),
                   row_colors=set_row_colors(conn, c, unallocated_cash_info), enable_events=True, justification='left',
-                  col_widths=[0, 30, 12, 13, 13, 13, 12], font='Any 11', num_rows=13, visible_column_map=visible_columns_budget)]]
+                  col_widths=[0, 30, 12, 13, 13, 13], font='Any 11', num_rows=13, visible_column_map=visible_columns_budget)]]
 
     # Create windows
     #TODO: put make budget window in views.budget_window in a function called create_budget_win 
@@ -584,12 +586,13 @@ def main():
                                                {'id': row_cat_id, 'new_category': new_category})
                                 conn.commit()
                                 sg.popup(f'{row_name} category name was changed to {new_category}')
-
+        view_date_obj = datetime.strptime(view_date, '%m-%Y')
         budget_win.BringToFront()
         account_menu = make_account_menu(conn, c)
         budget_win['View date'].update(pretty_print_date(view_date, all_months))
         budget_sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
-        budget_win['-Table-'].update(budget_sheet, row_colors=set_row_colors(conn, c, unallocated_cash_info))
+
+        budget_win['-Table-'].update(budget_sheet, row_colors=set_row_colors(conn, c, unallocated_cash_info), headings=set_budget_headings(today, view_date_obj))
 
     budget_win.close()
     conn.close()

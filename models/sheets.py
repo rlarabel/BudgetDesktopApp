@@ -54,7 +54,7 @@ def make_budget_sheet(conn, cursor, budget_date):
                 if category_name != 'Unallocated Cash':
                     month_budget, month_progress, month_spending, category_total, upcoming_expenses = get_monthly_category_data(cursor, todays_date, budget_date, category_name, category_id, account[0])
                     unallocated_cash -= float(category_total)
-                    table.append([category_id, category_name, month_budget, upcoming_expenses, month_spending, month_progress, category_total])
+                    table.append([category_id, category_name, month_budget, upcoming_expenses, month_spending, month_progress])
                     
                 else: 
                     unallocated_id = category_id
@@ -75,7 +75,7 @@ def make_budget_sheet(conn, cursor, budget_date):
             
             unallocated_cash_info.append({'account': account[0],'over allocated': over_allocated_flag, 'under allocated': under_allocated_flag, 'uncategorized spending': uncat_spending_flag})
         if not table:
-            table = [['','', '', '', '', '', '']]
+            table = [['','', '', '', '', '']]
         
         return table, unallocated_cash_info
 
