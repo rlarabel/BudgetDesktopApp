@@ -37,7 +37,7 @@ def update_category_budget(conn, cursor, row):
         cursor.execute("""UPDATE track_categories SET total =:total
                                     WHERE id=:id""", update_row)
         conn.commit()
-
+        
 
 def update_account_track(conn, cursor, row):
     with conn:
@@ -367,13 +367,3 @@ def update_loan(c, conn, sg, values, name, interest, start_date_obj, end_date_ob
     elif i_flag == 1 or amt_flag == 1 or date_flag == 1 or name_flag == 1 or initial_amt_flag == 1:
         sg.popup(base_str)
         conn.commit()
-
-def set_budget_headings(today, view_date):
-    if today.month >= view_date.month and today.year >= view_date.year:
-        temp = 'Budget Left'
-    else:
-        temp = 'Spendings Covered'
-    
-    headings = ['Category ID', 'Name', 'Pre-set Budget', 'Spent', 'Budget', temp]
-    
-    return headings

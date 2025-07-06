@@ -30,10 +30,23 @@ def create_account_win(sg):
     return window
 
 def edit_category_win(sg, category_info, menu):
-    layout = [[sg.Column([[sg.Text('Rename Or Move Category', font='Any 15')],
-                          [sg.Combo(values=menu, k='-Edit Category-', default_value=category_info[1])],
-                          [sg.Button('Update')]]),
-               sg.Button('Exit')]]
+    layout = [
+        [
+            sg.Column(
+                [
+                    [sg.Text('Rename Or Move Category', font='Any 15')],              
+                    [sg.Combo(values=menu, k='-Edit Category-', default_value=category_info[1])],
+                    [sg.Button('Update'), sg.Button('Exit')]
+                ]
+            ),
+            sg.Column(
+                [
+                    [sg.Text('Pre-Set Budget', font='Any 15')],
+                    [sg.Input(category_info[3], key='-Pre Set-')]
+                ]
+            )
+        ]
+    ]
 
     window = sg.Window('Edit or Delete Category', layout, keep_on_top=True, finalize=True)
 
@@ -52,7 +65,7 @@ def create_category_win(sg, menu):
 
 
 def move_funds_win(sg, category):
-    layout = [[sg.Text(f"Move funds from Unallocated Cash to {category}: "), sg.Input(key='-Move Funds-')], 
+    layout = [[sg.Text(f"Move funds from Available Cash to {category}: "), sg.Input(key='-Move Funds-')], 
               [sg.Button('Update'), sg.Button('Edit Category'), sg.Button('Exit')]]
 
     window = sg.Window('Budget Funds Transaction', layout, keep_on_top=True, finalize=True)

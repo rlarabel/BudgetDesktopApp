@@ -5,7 +5,7 @@ from views.investment_windows import create_savings_window, edit_asset_win, edit
 from views.visual_windows import create_visual_win
 from models.create_items import make_category_menu, add_new_account, add_new_category, add_transaction, make_account_menu, make_total_funds, csv_entry
 from models.sheets import set_row_colors, make_transaction_sheet, make_budget_sheet, set_transaction_row_colors, make_savings_sheet, make_asset_sheet, make_loan_sheet
-from models.update_items import update_category_budget, update_transaction, pretty_print_date, update_savings_acc, update_asset, update_asset_2, update_loan, set_budget_headings
+from models.update_items import update_category_budget, update_transaction, pretty_print_date, update_savings_acc, update_asset, update_asset_2, update_loan
 from models.make_db import create_db_tables, delete_savings_db, delete_assets_db, delete_loans_db
 from models.delete_items import delete_account, delete_category
 from models.visualize_data import add_fig
@@ -71,9 +71,9 @@ def main():
          sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
          sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)],
         [sg.Table(budget_sheet, key='-Table-', auto_size_columns=False,
-                  headings=set_budget_headings(today, view_date_obj),
+                  headings=['Category ID', 'Name', 'Pre-Set', 'Budget', 'Spent', 'Budget Left'],
                   row_colors=set_row_colors(conn, c, unallocated_cash_info), enable_events=True, justification='left',
-                  col_widths=[0, 30, 12, 13, 13, 13], font='Any 11', num_rows=13, visible_column_map=visible_columns_budget)]]
+                  col_widths=[0, 30, 15, 15, 15, 15], font='Any 11', num_rows=13, visible_column_map=visible_columns_budget)]]
 
     # Create windows
     #TODO: put make budget window in views.budget_window in a function called create_budget_win 
@@ -454,8 +454,8 @@ def main():
                 
             # User clicked on an account row in the budget table    
             if account_row and not row_cat_id:																
-            	event, values = move_funds_acc_win(sg, account_menu, row_name).read(close=True)
-            	if event == 'Update':																		# Transfer money to a different account
+                event, values = move_funds_acc_win(sg, account_menu, row_name).read(close=True)
+                if event == 'Update':																		# Transfer money to a different account
             	    if values['-To-'] not in (None, 'No Account Yet', row_name):
                         move_funds = 0
                         account_to = values['-To-']
@@ -484,7 +484,7 @@ def main():
                                 sg.popup(f'Successful\n{move_funds} from {row_name} to {account_to}')
                             else:
                                 sg.popup(f'Unsuccessful transfer')
-            	elif event == 'Edit Account':																# Edit Account
+                elif event == 'Edit Account':																# Edit Account
                     edit_event, edit_values = edit_account_win(sg, account_row, account_menu).read(close=True)
                     if edit_event == 'Update' and edit_values['-Edit account-'] not in (None, row_name):
                         new_acc_name = edit_values['-Edit account-']
@@ -513,14 +513,15 @@ def main():
             else:																							
                 c.execute("SELECT * FROM categories WHERE id=:id", {'id': row_cat_id})
                 category_row = c.fetchone()
-                if category_row and row_name != "Unallocated Cash":
+                if category_row and row_name != "Available Cash":
                     selected_category = category_row[1] 
                     selected_account = category_row[2]
+                    preset_budget = category_row[3]
+                    
+                    
                     event, values = move_funds_win(sg, row_name).read(close=True)
                     if event == 'Update':
                         if values['-Move Funds-']:
-                            # TODO: When moving funds if spending is not covered in previous month allocate there first
-                            # TODO: Also if user try to subtract more than they have warn them 
                             move_funds = 0
                     
                             # Format view date for DB
@@ -553,8 +554,7 @@ def main():
                                 c.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND date=:date",
                                   {'category_id': row_cat_id, 'date': track_date})
                                 tracking_funds = c.fetchone()
-                    
-                                # moves funds from 'Unallocated Cash' to desired category
+                                # moves funds from 'Available Cash' to desired category
                                 move_flag = True 
                                 if tracking_funds:
                                     tracking_funds = list(tracking_funds)
@@ -573,26 +573,40 @@ def main():
                         edit_event, values = edit_category_win(sg, category_row, category_menu).read(close=True)
                         
                         if edit_event == "Update":
-                        	# Move Data and Delete old Category
+                        	# User Input
                             new_category = values['-Edit Category-']
-                            if new_category in (None, row_name) or not row_cat_id:
+                            try:
+                                new_preset_budget = round(float(values['-Pre Set-']), 2)
+                            except ValueError:
+                                new_preset_budget = 0.0
+                            
+                            # Move Data and Delete old Category
+                            if not new_category or not row_cat_id:
                                 sg.popup(f'failed to edit category')
-                            elif new_category in category_menu :
+                            elif new_category in category_menu and new_category != row_name:
                                 delete_category(conn, c, new_category, selected_account, row_cat_id)
                                 sg.popup(f'{row_name} was moved and deleted')
-                            else: 																		
+                            elif row_name != new_category: 																		
                                 # Change category name
                                 c.execute("""UPDATE categories SET name=:new_category WHERE id=:id""",
                                                {'id': row_cat_id, 'new_category': new_category})
                                 conn.commit()
                                 sg.popup(f'{row_name} category name was changed to {new_category}')
-        view_date_obj = datetime.strptime(view_date, '%m-%Y')
+                            
+                            # Edit pre set budget
+                            if new_preset_budget != preset_budget:
+                                c.execute("""UPDATE categories SET pre_set=:pre_set WHERE id=:id""",
+                                               {'id': row_cat_id, 'pre_set': new_preset_budget})
+                                conn.commit()
+                                sg.popup(f'{row_name} category pre-set budget was changed to {new_preset_budget}')
+
+
         budget_win.BringToFront()
         account_menu = make_account_menu(conn, c)
         budget_win['View date'].update(pretty_print_date(view_date, all_months))
         budget_sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
 
-        budget_win['-Table-'].update(budget_sheet, row_colors=set_row_colors(conn, c, unallocated_cash_info), headings=set_budget_headings(today, view_date_obj))
+        budget_win['-Table-'].update(budget_sheet, row_colors=set_row_colors(conn, c, unallocated_cash_info))
 
     budget_win.close()
     conn.close()

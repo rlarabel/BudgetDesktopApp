@@ -55,7 +55,7 @@ def add_new_account(conn, cursor, data):
         if error_flag == 1:
             cursor.execute("INSERT INTO accounts VALUES (:name, :type)", new_row_acc)
             if new_row_acc['type'] == 'spending' or new_row_acc['type'] == 'bills':
-                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", new_row_cat)
+                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0)", new_row_cat)
 
             elif new_row_acc['type'] == 'savings':
                 # Check User Input
@@ -186,7 +186,7 @@ def add_new_category(conn, cursor, data, category_id=None):
             'name': data['-New category-'],
             'account': parent_account[0]
         }
-        cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", new_row)
+        cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0)", new_row)
         conn.commit()
 
 

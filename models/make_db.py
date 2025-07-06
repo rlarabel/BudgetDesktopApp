@@ -62,6 +62,7 @@ def make_category_db(conn, cursor):
                     id INTEGER PRIMARY KEY,
                     name TEXT ,
                     account TEXT,
+                    pre_set REAL,
                     FOREIGN KEY(account) REFERENCES accounts(name)
                         ON UPDATE CASCADE
                     )""")
