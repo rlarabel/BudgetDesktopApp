@@ -43,7 +43,7 @@ def make_budget_sheet(conn, cursor, budget_date):
                 account_total += single_trans[0]       
             
             # Creates account row in budget sheet
-            table.append(['',account[0], '', '', '', '', str(round(account_total, 2))])
+            table.append(['',account[0], '', '', '', str(round(account_total, 2))])
             
             # Loop through all categories
             cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
@@ -61,7 +61,8 @@ def make_budget_sheet(conn, cursor, budget_date):
                     spent = str(round(spent, 2))
                     budget = str(round(budget, 2))
                     if type(budget_left) != str:
-                        budget_left = str(round(budget_left, 2))
+                        budget_left = str(round(budget_left, 2)) + '%'
+
                     table.append([category_id, category_name, pre_set, budget, spent, budget_left])
                     
                 else:
@@ -113,6 +114,7 @@ def get_monthly_category_data(cursor, todays_date, budget_date, category_id, acc
 
 def get_spendings(cursor, category_id, account, pov, start_date=None, end_date=None):
     spending = 0.0
+    #TODO: Fix spendings
     if pov == 'past' or pov == 'present':
         cursor.execute("SELECT total FROM transactions WHERE category_id=:category_id AND account=:account AND date>=:start_date AND date<:end_date", 
                     {'category_id': category_id, 'account': account, 'start_date': start_date, 'end_date': end_date})

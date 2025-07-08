@@ -1,5 +1,6 @@
-from models.create_items import make_account_menu, make_category_menu
-from views.visual_windows import sel_win
+# TODO: Turn menus into models
+from logic.create_items import make_account_menu, make_category_menu
+from views.visuals import sel_win
 from datetime import datetime
 from matplotlib.dates import DateFormatter
 from dateutil.relativedelta import relativedelta

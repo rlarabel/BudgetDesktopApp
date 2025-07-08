@@ -55,53 +55,6 @@ def edit_savings_win(sg, name, desired_i, real_value):
 
     return window
 
-def create_savings_acc_win(sg):
-    layout = [
-        [
-            [sg.Text('Date')],
-            [sg.Input(k='-Date-', size=(10, 1)), sg.CalendarButton('Choose Date', target='-Date-', format='%m-%d-%Y')]
-        ],
-        [sg.Text('Initial Deposit'), sg.Input(key="-Initial Deposit-", size=(15, 1))],
-        [sg.Text('Interest'), sg.Input(key="-Interest-", size=(10, 1))],
-        [sg.Button('OK'), sg.Button('Cancel')]
-    ]
-
-    window = sg.Window('Create Savings Account', layout, finalize=True)
-
-    return window
-
-def create_loan_acc_win(sg):
-    layout = [
-        [
-            [sg.Text('Start Date')],
-            [sg.Input(k='-Start Date-', size=(10, 1)), sg.CalendarButton('Choose Date', target='-Start Date-', format='%m-%d-%Y')]
-        ],
-        [sg.Text('Initial Loan Amount'), sg.Input(key="-Loan-", size=(15, 1))],
-        [sg.Text('Interest'), sg.Input(key="-Interest-", size=(10, 1))],
-        [
-            [sg.Text('End Date')],
-            [sg.Input(k='-End Date-', size=(10, 1)), sg.CalendarButton('Choose Date', target='-End Date-', format='%m-%d-%Y')]
-        ],
-        [sg.Button('OK'), sg.Button('Cancel')]
-    ]
-
-    window = sg.Window('Create Loan Account', layout, finalize=True)
-
-    return window
-
-def create_asset_acc_win(sg):
-    layout = [
-        [
-            [sg.Text('Start Date')],
-            [sg.Input(k='-Date-', size=(10, 1)), sg.CalendarButton('Choose Date', target='-Date-', format='%m-%d-%Y')]
-        ],
-        [sg.Text('Initial Purchase Amount'), sg.Input(key="-amt-", size=(15, 1))],
-        [sg.Button('OK'), sg.Button('Cancel')]
-    ]
-
-    window = sg.Window('Create asset Account', layout, finalize=True)
-
-    return window
 
 def edit_asset_win(sg, data):
     name = data[0]

@@ -1,7 +1,8 @@
 from datetime import datetime
 
 
-def create_transaction_window(sg, table, visible_columns, transaction_row_colors):
+def create_transaction_window(sg, table, transaction_row_colors):
+    visible_columns = [False, True, True, True, True, True, True]
     layout = [[sg.Text('Transaction Window', justification='center', font='Any 15', size=(44, 1))],
               [sg.Text('Liquid Possessions:'), sg.Text(size=(15, 1), key='-Funds-'),
                sg.Button('New Transaction', pad=((150, 1), (1, 1)))],
