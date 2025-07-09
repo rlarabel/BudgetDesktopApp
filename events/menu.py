@@ -1,6 +1,14 @@
 from logic.create_items import add_new_account, add_new_category
 from views.menu import create_account_win, create_savings_win, create_asset_win, create_loan_win, create_category_win
 
+
+def menu(sg, conn, c, event, account_menu):
+    if event == 'Add Account':
+        add_account(sg, conn, c)
+    elif event == 'Add Category':
+        add_category(sg, conn, c, account_menu)
+
+
 def add_account(sg, conn, c):
     event, values = create_account_win(sg).read(close=True)
     if event == 'Save':
@@ -46,6 +54,7 @@ def add_account(sg, conn, c):
             sg.popup(f'There is already an existing {create_acc}')
         elif not create_acc:
             sg.popup(f'There is missing info needed to create the account')
+
 
 def add_category(sg, conn, c, account_menu, ):
     event, values = create_category_win(sg, account_menu).read(close=True)

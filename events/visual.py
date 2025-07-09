@@ -1,25 +1,27 @@
 from logic.visualize_data import add_fig
-from views.visuals import create_visual_win
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def visualize(sg, conn, c, values, budget_win):
-    visual_win_active = True
-    budget_win.Hide()
-    visual_win = create_visual_win(sg)
+def visual(sg, conn, c, budget_wc, visual_wc):
+    visual_wc.activate()
+    budget_wc.hide()
+    visual_wc.create(sg)
     
-    while visual_win_active:
-        event, values = visual_win.Read()
+    while visual_wc.get_active_flag():
+        visual_wc.wait()
+        event = visual_wc.get_event()
+        values = visual_wc.get_values()
+
         if event in ('Back', None):
-            visual_win.Close()
-            visual_win_active = False
-            budget_win.UnHide()
+            visual_wc.close()
+            budget_wc.unhide()
         elif event == 'Show':
             show(sg, conn, c, plt, np, values)
 
-        if visual_win_active:
-            visual_win.BringToFront()
+        if visual_wc.get_active_flag():
+            visual_wc.update()
+            
 
 
 def show(sg, conn, c, plt, np, values):

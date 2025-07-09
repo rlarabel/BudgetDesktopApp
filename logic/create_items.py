@@ -98,7 +98,7 @@ def add_new_account(conn, cursor, data):
                 # Get an unused category ID and create a category
                 cursor.execute("SELECT id FROM categories ORDER BY ID DESC")
                 category_id = cursor.fetchone()[0] + 1
-                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", 
+                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0)", 
                             {'id': category_id, 'name': 'Not Available', 'account': data[0]})
                 # Insert initial deposit into transaction
                 cursor.execute("""INSERT INTO transactions VALUES 

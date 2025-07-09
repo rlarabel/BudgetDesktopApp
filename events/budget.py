@@ -1,9 +1,26 @@
 from datetime import datetime
 
-from logic.create_items import make_category_menu
+from logic.create_items import make_account_menu, make_category_menu
 from logic.delete_items import delete_account, delete_category
 from logic.update_items import update_category_budget
 from views.budget import edit_account_win, edit_category_win, move_funds_acc_win, move_funds_win 
+
+
+def edit_budget(sg, conn, c, view_date, budget_wc):
+    account_menu = make_account_menu(conn, c)
+    # Initial Variables needed 
+    row_name = budget_wc.get_row_name()
+    c.execute("SELECT * FROM accounts WHERE name=:name", {'name': row_name})
+    account_data = c.fetchone()
+    category_id = budget_wc.get_category_id()
+
+    # Getting info of the row clicked on
+    if account_data and not category_id:
+        # User clicked on an account row in the budget table 														
+        select_account(sg, conn, c, account_menu, row_name, account_data)
+    else:
+        # User clicked on a category row in the budget table																							
+        select_category(sg, conn, c, category_id, row_name, view_date)
 
 
 def select_account(sg, conn, c, account_menu, row_name, account_row): 
@@ -19,15 +36,13 @@ def select_category(sg, conn, c, category_id, row_name, view_date):
     category_row = c.fetchone()
     if category_row and row_name != "Available Cash":
         sel_category = category_row[1] 
-        sel_account = category_row[2]
-        preset_budget = category_row[3]
-        
+        sel_account = category_row[2]        
         
         event, values = move_funds_win(sg, row_name).read(close=True)
         if event == 'Update':
             allocate(sg, conn, c, sel_account, sel_category, category_id, values, view_date)
         if event == 'Edit Category':
-           edit_category()
+           edit_category(sg, conn, c, sel_account, category_id, category_row, row_name)
 
 
 def transfer(sg, conn, c, values, row_name):

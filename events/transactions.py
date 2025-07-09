@@ -4,6 +4,26 @@ from logic.create_items import add_transaction, csv_entry, make_account_menu, ma
 from logic.update_items import update_transaction
 from views.transactions import create_new_transaction, edit_transaction_window, get_csv, select_account
 
+def transaction(sg, conn, c, budget_wc, transaction_wc):
+    transaction_wc.activate()
+    budget_wc.hide()
+    transaction_wc.create(sg, conn, c)
+
+    while transaction_wc.get_active_flag():
+        transaction_wc.wait()
+        event = transaction_wc.get_event()
+        values = transaction_wc.get_values()
+        if event in ('Back To Accounts', None):
+            transaction_wc.close()
+            budget_wc.unhide()
+        elif event == 'New Transaction':
+            new_transaction(sg, conn, c, transaction_wc.get_validate_keys())
+        elif event == '-Trans table-':
+            edit_transaction(sg, conn, c, values, transaction_wc.get_sheet(), transaction_wc.get_validate_keys())
+
+        if transaction_wc.get_active_flag():
+            transaction_wc.update(conn, c)
+
 def new_transaction(sg, conn, c, keys_to_validate):
     # Gets desired account info before the next window
     trans_acc_menu = make_account_menu(conn, c, ['spending', 'bills', 'savings'])
