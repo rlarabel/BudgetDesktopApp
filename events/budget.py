@@ -1,12 +1,10 @@
-from datetime import datetime
-
 from logic.create_items import make_account_menu, make_category_menu
 from logic.delete_items import delete_account, delete_category
 from logic.update_items import update_category_budget
 from views.budget import edit_account_win, edit_category_win, move_funds_acc_win, move_funds_win 
 
 
-def edit_budget(sg, conn, c, view_date, budget_wc):
+def edit_budget(sg, conn, c, pov, budget_wc):
     account_menu = make_account_menu(conn, c)
     # Initial Variables needed 
     row_name = budget_wc.get_row_name()
@@ -20,18 +18,18 @@ def edit_budget(sg, conn, c, view_date, budget_wc):
         select_account(sg, conn, c, account_menu, row_name, account_data)
     else:
         # User clicked on a category row in the budget table																							
-        select_category(sg, conn, c, category_id, row_name, view_date)
+        select_category(sg, conn, c, category_id, row_name, pov)
 
 
-def select_account(sg, conn, c, account_menu, row_name, account_row): 
+def select_account(sg, conn, c, pov, account_menu, row_name, account_row): 
     event, values = move_funds_acc_win(sg, account_menu, row_name).read(close=True)
     if event == 'Update':																		# Transfer money to a different account
-        transfer(sg, conn, c, values, row_name)
+        transfer(sg, conn, c, pov, values, row_name)
     elif event == 'Edit Account':																# Edit Account
         edit_account(sg, conn, c, account_row, row_name)
 
 
-def select_category(sg, conn, c, category_id, row_name, view_date):
+def select_category(sg, conn, c, category_id, row_name, pov):
     c.execute("SELECT * FROM categories WHERE id=:id", {'id': category_id})
     category_row = c.fetchone()
     if category_row and row_name != "Available Cash":
@@ -40,12 +38,12 @@ def select_category(sg, conn, c, category_id, row_name, view_date):
         
         event, values = move_funds_win(sg, row_name).read(close=True)
         if event == 'Update':
-            allocate(sg, conn, c, sel_account, sel_category, category_id, values, view_date)
+            allocate(sg, conn, c, sel_account, sel_category, category_id, values, pov)
         if event == 'Edit Category':
            edit_category(sg, conn, c, sel_account, category_id, category_row, row_name)
 
 
-def transfer(sg, conn, c, values, row_name):
+def transfer(sg, conn, c, pov, values, row_name):
     if values['-To-'] not in (None, 'No Account Yet', row_name):
         move_funds = 0
         account_to = values['-To-']
@@ -64,10 +62,10 @@ def transfer(sg, conn, c, values, row_name):
             c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  account_to})
             category_id_to = c.fetchone()[0]
             c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                    {'id': None, 'date': datetime.now().strftime('%Y-%m-%d'), 'payee': None, 'notes': 'TRANSFER', 'total': 0-move_funds, 'account': row_name,
+                    {'id': None, 'date': pov.get_today_str(), 'payee': None, 'notes': 'TRANSFER', 'total': 0-move_funds, 'account': row_name,
                     'category_id': category_id_from})
             c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                    {'id': None, 'date': datetime.now().strftime('%Y-%m-%d'), 'payee': None, 'notes': 'TRANSFER', 'total': move_funds, 'account': account_to,
+                    {'id': None, 'date': pov.get_today_str(), 'payee': None, 'notes': 'TRANSFER', 'total': move_funds, 'account': account_to,
                     'category_id': category_id_to})
             conn.commit()
             sg.popup(f'Successful\n{move_funds} from {row_name} to {account_to}')
@@ -102,18 +100,10 @@ def edit_account(sg, conn, c, account_row, account_menu, row_name):
         sg.popup("Was unable to update any information")
 
 
-def allocate(sg, conn, c, sel_account, sel_category, category_id, values, view_date):
+def allocate(sg, conn, c, sel_account, sel_category, category_id, values, pov):
     if values['-Move Funds-']:
         move_funds = 0
-
-        # Format view date for DB
-        input_year, input_month = view_date.split('-')
-        input_month = int(input_month)
-        if input_month < 10:
-            input_month = '0' + str(input_month)
-        else: 
-            input_month = str(input_month)
-        track_date = input_year + '-' + input_month + '-01'
+        track_date = pov.get_view_date_full_str()
 
         # Error Checking for User Input
         try:

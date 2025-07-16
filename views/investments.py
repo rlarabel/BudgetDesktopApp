@@ -1,12 +1,12 @@
 from datetime import datetime
 
 
-def create_savings_window(sg, savings_sheet, year_combo, all_months):
+def create_savings_window(sg, savings_sheet, pov):
     #TODO: add a help menu
     layout = [
         [sg.Text(size=(55, 1), key='View date', font='Any 11'),
-         sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((400, 1), (1, 1)), bind_return_key=True),
-         sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)],
+         sg.Combo(values=pov.get_year_combo(), k='-Year-', enable_events=True, pad=((400, 1), (1, 1)), bind_return_key=True),
+         sg.Combo(values=pov.get_all_months(), readonly=True, k='-Month-', enable_events=True)],
         [sg.Text('Savings', justification='center', size=(83, 1), font='Any 15')],
         [sg.Table(savings_sheet, key='-Savings table-', auto_size_columns=False,
                   headings=['Account', 'Month Dep Amt ($)', 'Total Dep Amt ($)', 'Real Value ($)', 'Desired APY (%)', 'Real APY (%)', 'Interest Earned ($)', 'Total Growth (%)'],

@@ -114,11 +114,6 @@ def sql_trans_update(cursor, row_id, user_date, data, user_total, account_name, 
     
     return 1
 
-def pretty_print_date(user_date, months):
-    user_year, user_month = user_date.split('-')
-    str_month = months[int(user_month)-1]
-    return str_month + ' ' + user_year
-
 
 def update_month_combo(months, user_date):
     combo = []

@@ -1,4 +1,4 @@
-def create_budget_win(sg, menu_def, year_combo, all_months, budget_sheet, colors):
+def create_budget_win(sg, menu_def, pov, budget_sheet, colors):
     # TODO: add a help menu
     # TODO: Add a dynamic 50/40/10 sg.Text
     visible_columns = [False, True, True, True, True, True] 
@@ -7,8 +7,8 @@ def create_budget_win(sg, menu_def, year_combo, all_months, budget_sheet, colors
         [sg.Text('Account Window', justification='center', size=(67, 1), font='Any 15')],
         [
             sg.Text(size=(55, 1), key='View date', font='Any 11'),
-            sg.Combo(values=year_combo, k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
-            sg.Combo(values=all_months, readonly=True, k='-Month-', enable_events=True)
+            sg.Combo(values=pov.get_year_combo(), k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
+            sg.Combo(values=pov.get_all_months(), readonly=True, k='-Month-', enable_events=True)
         ],
         [
             sg.Table(

@@ -1,6 +1,5 @@
 from logic.create_items import make_total_funds
 from logic.sheets import make_asset_sheet, make_budget_sheet, make_loan_sheet, make_savings_sheet, make_transaction_sheet, set_row_colors, set_transaction_row_colors
-from logic.update_items import pretty_print_date
 from views.budget import create_budget_win
 from views.investments import create_loans_assets_window, create_savings_window
 from views.transactions import create_transaction_window
@@ -45,21 +44,21 @@ class budget_window(window_controller):
     def __init__(self):
         super().__init__()
 
-    def create(self, sg, conn, c, view_date, year_combo, all_months):
+    def create(self, sg, conn, c, pov):
         menu_def = [
             ['&New', ['Add Account', 'Add Category']],
             ['&Views', ['&Transactions', 'Savings', 'Loans\\Assets', 'Visualize']]
         ]
-        self.sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
+        self.sheet, unallocated_cash_info = make_budget_sheet(conn, c, pov)
         colors = set_row_colors(conn, c, unallocated_cash_info)
-        layout = create_budget_win(sg, menu_def, year_combo, all_months, self.sheet, colors)
+        layout = create_budget_win(sg, menu_def, pov, self.sheet, colors)
         self.window = sg.Window('Rat Trap - Money Tracker', layout, finalize=True, resizable=True)
-        self.window['View date'].update(pretty_print_date(view_date, all_months))
+        self.window['View date'].update(pov.pretty_view_date())
     
-    def update(self, conn, c, view_date, all_months):
+    def update(self, conn, c, pov):
         self.window.BringToFront()
-        self.window['View date'].update(pretty_print_date(view_date, all_months)) # type: ignore
-        self.sheet, unallocated_cash_info = make_budget_sheet(conn, c, view_date)
+        self.window['View date'].update(pov.pretty_view_date()) 
+        self.sheet, unallocated_cash_info = make_budget_sheet(conn, c, pov)
         colors = set_row_colors(conn, c, unallocated_cash_info)
         self.window['-Table-'].update(self.sheet, row_colors=colors)
     
@@ -114,16 +113,16 @@ class savings_window(window_controller):
     def __init__(self):
         super().__init__()
    
-    def create(self, sg, conn, c, view_date, all_months, year_combo):
-        self.sheet = make_savings_sheet(conn, c, view_date)
-        self.window = create_savings_window(sg, self.sheet, year_combo, all_months)
-        self.window['View date'].update(pretty_print_date(view_date, all_months))
+    def create(self, sg, conn, c, pov):
+        self.sheet = make_savings_sheet(conn, c, pov)
+        self.window = create_savings_window(sg, self.sheet, pov)
+        self.window['View date'].update(pov.pretty_view_date())
     
-    def update(self, conn, c, view_date, all_months):
+    def update(self, conn, c, pov):
         self.window.BringToFront()
-        savings_sheet = make_savings_sheet(conn, c, view_date)
+        savings_sheet = make_savings_sheet(conn, c, pov)
         self.window['-Savings table-'].update(savings_sheet)
-        self.window['View date'].update(pretty_print_date(view_date, all_months))
+        self.window['View date'].update(pov.pretty_view_date())
 
 
 class loan_asset_window(window_controller):

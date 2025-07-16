@@ -1,12 +1,11 @@
 from logic.update_items import update_savings_acc, update_loan, update_asset, update_asset_2
 from views.investments import edit_savings_win, edit_loan_win, edit_asset_win, edit_pw_win
 from datetime import datetime
-import events.pov as pov_event
 
 
-def savings(sg, conn, c, budget_wc, savings_wc, all_months, year_combo):
+def savings(sg, conn, c, pov, budget_wc, savings_wc, all_months, year_combo):
     budget_wc.hide()
-    savings_wc.create(sg, conn, c, view_date, all_months, year_combo)
+    savings_wc.create(sg, conn, c, pov, all_months, year_combo)
     savings_wc.activate()
 
     while savings_wc.get_active_flag():
@@ -18,17 +17,17 @@ def savings(sg, conn, c, budget_wc, savings_wc, all_months, year_combo):
             savings_wc.close()
             budget_wc.unhide()
         elif event in ('-Year-', '-Month-'):
-            view_date = pov_event.change_pov(values, all_months, view_date)
+            pov.change_pov(values)
         elif event == '-Savings table-' and values['-Savings table-']:
-            edit_savings(sg, conn, c, view_date, values, savings_wc.get_sheet()) 
+            edit_savings(sg, conn, c, pov, values, savings_wc.get_sheet()) 
         if savings_wc.get_active_flag():
-            savings_wc.update(conn, c, view_date, all_months)
+            savings_wc.update(conn, c, pov, all_months)
 
 
-def edit_savings(sg, conn, c, view_date, values, savings_sheet):
+def edit_savings(sg, conn, c, pov, values, savings_sheet):
     row_int = values['-Savings table-'][0]
     account = savings_sheet[row_int][0]
-    track_date = view_date + '-01'
+    track_date = pov.get_view_date_full_str()
     c.execute("SELECT * FROM savings WHERE name=:name", {"name" : account})
     _, state, desired_i = c.fetchone()
     c.execute("SELECT amount FROM track_savings WHERE account=:account and date=:date", 
