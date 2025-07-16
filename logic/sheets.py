@@ -26,7 +26,7 @@ def make_budget_sheet(conn, cursor, pov):
                 account_total += single_trans[0]       
             
             # Creates account row in budget sheet
-            table.append(['',account[0], '', '', '', str(round(account_total, 2))])
+            table.append(['',account[0], '', '', '', '$' + str(round(account_total, 2))])
             
             # Loop through all categories
             cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
@@ -36,13 +36,13 @@ def make_budget_sheet(conn, cursor, pov):
                 over_allocated_flag = False
                 category_id = category[0]
                 category_name = category[1]
-                pre_set = category[3]
+                pre_set = '$' + str(round(category[3], 2))
                 
                 # Gets the name, pre-set budget, money spent the view month, budget, budget left  for each category selected from the DB
                 if category_name != 'Unallocated Cash':
                     spent, budget, budget_left = get_monthly_category_data(cursor, pov, category_id, account[0])
-                    spent = str(round(spent, 2))
-                    budget = str(round(budget, 2))
+                    spent = '$' + str(round(spent, 2))
+                    budget = '$' + str(round(budget, 2))
                     if type(budget_left) != str:
                         budget_left = str(round(budget_left, 2)) + '%'
 
@@ -53,7 +53,7 @@ def make_budget_sheet(conn, cursor, pov):
                     unallocated_id = category_id
             
             # The unallocated category is the last row added for an account
-            unallocated_category = [unallocated_id,'Available Cash', '', '', '', str(round(available, 2))]
+            unallocated_category = [unallocated_id,'Available Cash', '', '', '', '$' + str(round(available, 2))]
             table.append(unallocated_category)
             
             # Flags for over or under budgeting and spending
@@ -116,7 +116,7 @@ def get_spendings(cursor, pov, category_id, account, flag=False):
                     if datetime.strptime(trans[1], '%Y-%m-%d') < datetime.today():
                         spending -= trans[0] 
     else:
-        start_date = pov.get_today_str()
+        start_date = pov.get_this_month_str()
         cursor.execute("SELECT total FROM transactions WHERE category_id=:category_id AND account=:account AND date=:date",
                        {'category_id': category_id, 'account': account, 'date': start_date})
         all_transactions = cursor.fetchall()
@@ -131,7 +131,7 @@ def get_spendings(cursor, pov, category_id, account, flag=False):
 def get_budget(cursor, pov, category_id, account):
     budget = 0.0
     scope = pov.get_scope()
-    budget_date = pov.get_view_date()
+    budget_date = pov.get_view_date_full_str()
     
     if scope == 'past' or scope == 'present':
         cursor.execute("SELECT total FROM track_categories WHERE category_id=:category_id AND account=:account AND date=:date", 
@@ -141,7 +141,7 @@ def get_budget(cursor, pov, category_id, account):
             budget = past_budget[0]
     else:
         cursor.execute("SELECT total FROM track_categories WHERE category_id=:id AND account=:account AND date>=:start_date AND date<=:end_date",
-                       {'id': category_id, 'account': account, 'start_date':pov.get_today_str,'end_date': budget_date})
+                       {'id': category_id, 'account': account, 'start_date':pov.get_this_month_str(),'end_date': budget_date})
         budget_log = cursor.fetchall()
         if budget_log:
             budget_lump_sum = 0
@@ -244,7 +244,7 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
 
 def check_prev_months(conn, cursor, pov, account):
     flagged_dates = []
-    todays_date = pov.get_today_str()
+    todays_date = pov.get_this_month_str()
     budget_flag = False
     past_flag = False
 
@@ -278,7 +278,7 @@ def check_prev_months(conn, cursor, pov, account):
                         else:
                             loop_date = None
 
-                    if date_obj.date() < pov.get_today().date():
+                    if date_obj.date() < pov.get_this_month().date():
                         past_flag = True
 
                     if spendings_total > budget:

@@ -15,7 +15,7 @@ def edit_budget(sg, conn, c, pov, budget_wc):
     # Getting info of the row clicked on
     if account_data and not category_id:
         # User clicked on an account row in the budget table 														
-        select_account(sg, conn, c, account_menu, row_name, account_data)
+        select_account(sg, conn, c, pov, account_menu, row_name, account_data)
     else:
         # User clicked on a category row in the budget table																							
         select_category(sg, conn, c, category_id, row_name, pov)
@@ -62,10 +62,10 @@ def transfer(sg, conn, c, pov, values, row_name):
             c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  account_to})
             category_id_to = c.fetchone()[0]
             c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                    {'id': None, 'date': pov.get_today_str(), 'payee': None, 'notes': 'TRANSFER', 'total': 0-move_funds, 'account': row_name,
+                    {'id': None, 'date': pov.get_this_month_str(), 'payee': None, 'notes': 'TRANSFER', 'total': 0-move_funds, 'account': row_name,
                     'category_id': category_id_from})
             c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                    {'id': None, 'date': pov.get_today_str(), 'payee': None, 'notes': 'TRANSFER', 'total': move_funds, 'account': account_to,
+                    {'id': None, 'date': pov.get_this_month_str(), 'payee': None, 'notes': 'TRANSFER', 'total': move_funds, 'account': account_to,
                     'category_id': category_id_to})
             conn.commit()
             sg.popup(f'Successful\n{move_funds} from {row_name} to {account_to}')

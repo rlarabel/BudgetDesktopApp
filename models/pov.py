@@ -7,8 +7,9 @@ class pov_controller:
         for i in range(datetime.now().year - 3, datetime.now().year + 5):
             self.year_combo.append(str(i))
         self.all_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        self.today = datetime.now().replace(day=1) 
-        self.view_date = self.today
+        self.today = datetime.now()
+        self.this_month = self.today.replace(day=1) 
+        self.view_date = self.this_month
         self.next_month = self.view_date + relativedelta.relativedelta(months=1)
 
     def change_view_date(self, values):
@@ -51,6 +52,9 @@ class pov_controller:
     def get_next_month_str(self):
         return self.next_month.strftime('%Y-%m-%d')
     
+    def get_this_month_str(self):
+        return self.this_month.strftime('%Y-%m-%d')
+
     def get_view_date(self):
         return self.view_date
     
@@ -65,3 +69,6 @@ class pov_controller:
     
     def get_year_combo(self):
         return self.year_combo
+    
+    def get_this_month(self):
+        return self.this_month
