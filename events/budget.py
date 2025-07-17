@@ -57,12 +57,14 @@ def transfer(sg, conn, c, pov, values, row_name):
 
         # Inserting two new transaction into the Database            
         if not move_flag:
-            c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  row_name})
+            cat_from = pick_category(c, row_name)
+            cat_to = pick_category(c, account_to)
+            c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': cat_from, 'account':  row_name})
             category_id_from = c.fetchone()[0]
-            c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': 'Unallocated Cash', 'account':  account_to})
+            c.execute("""SELECT id FROM categories WHERE name=:name AND account=:account""", {'name': cat_to, 'account':  account_to})
             category_id_to = c.fetchone()[0]
             c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                    {'id': None, 'date': pov.get_this_month_str(), 'payee': None, 'notes': 'TRANSFER', 'total': 0-move_funds, 'account': row_name,
+                    {'id': None, 'date': pov.get_this_month_str(), 'payee': None, 'notes': 'TRANSFER', 'total': -move_funds, 'account': row_name,
                     'category_id': category_id_from})
             c.execute("""INSERT INTO transactions VALUES (:id, :date, :payee, :notes, :total, :account, :category_id)""",
                     {'id': None, 'date': pov.get_this_month_str(), 'payee': None, 'notes': 'TRANSFER', 'total': move_funds, 'account': account_to,
@@ -72,6 +74,14 @@ def transfer(sg, conn, c, pov, values, row_name):
         else:
             sg.popup(f'Unsuccessful transfer')
 
+def pick_category(c, row_name):
+    c.execute("SELECT type FROM accounts WHERE name=:name", {'name': row_name})
+    account_type = c.fetchone()
+    if account_type and account_type[0] in ('spending','income','bills'):
+        cat_name = 'Unallocated Cash'
+    else:
+        cat_name = 'Not Available'
+    return cat_name
 
 def edit_account(sg, conn, c, account_row, account_menu, row_name):
     edit_event, edit_values = edit_account_win(sg, account_row, account_menu).read(close=True)

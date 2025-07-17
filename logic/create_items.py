@@ -23,7 +23,7 @@ def make_category_menu(conn, cursor, account, edit_flag=False):
         return tuple(menu)
 
 
-def make_account_menu(conn, cursor, acc_type=['spending', 'bills']):
+def make_account_menu(conn, cursor, acc_type=['spending', 'bills', 'income', 'savings']):
     with conn:
         menu = []
         for type in acc_type:
@@ -260,7 +260,7 @@ def add_transaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=
                                             (:id, :date, :payee, :notes, :total, :account, :category_id)""",
                         {'id': trans_id, 'date': date, 'payee': data['-Payee-'], 'notes': data['-Notes-'],
                             'total': user_total, 'account': sel_account, 'category_id': category_id})
-                cursor.execute("UPDATE track_savings SET amount = amount + :add_value WHERE name=:name and date=:date", 
+                cursor.execute("UPDATE track_savings SET amount = amount + :add_value WHERE account=:name and date=:date", 
                                {'add_value': user_total, 'name': sel_account, 'date': track_date})
             else:
                 error_flag = -3

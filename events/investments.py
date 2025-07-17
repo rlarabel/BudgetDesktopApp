@@ -3,9 +3,9 @@ from views.investments import edit_savings_win, edit_loan_win, edit_asset_win, e
 from datetime import datetime
 
 
-def savings(sg, conn, c, pov, budget_wc, savings_wc, all_months, year_combo):
+def savings(sg, conn, c, pov, budget_wc, savings_wc):
     budget_wc.hide()
-    savings_wc.create(sg, conn, c, pov, all_months, year_combo)
+    savings_wc.create(sg, conn, c, pov)
     savings_wc.activate()
 
     while savings_wc.get_active_flag():
@@ -17,11 +17,11 @@ def savings(sg, conn, c, pov, budget_wc, savings_wc, all_months, year_combo):
             savings_wc.close()
             budget_wc.unhide()
         elif event in ('-Year-', '-Month-'):
-            pov.change_pov(values)
+            pov.change_view_date(values)
         elif event == '-Savings table-' and values['-Savings table-']:
             edit_savings(sg, conn, c, pov, values, savings_wc.get_sheet()) 
         if savings_wc.get_active_flag():
-            savings_wc.update(conn, c, pov, all_months)
+            savings_wc.update(conn, c, pov)
 
 
 def edit_savings(sg, conn, c, pov, values, savings_sheet):

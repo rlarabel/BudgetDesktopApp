@@ -359,21 +359,16 @@ def make_savings_sheet(conn, cursor, pov):
                 desired_apy = desired_apy[0]
             else:
                 desired_apy = 5.0
-            cursor.execute("SELECT amount FROM track_savings WHERE account=:account AND date=:date",
-                           {'account': name, 'date': pov.get_view_date_full_str()})
-            amount = cursor.fetchone()
-            if amount:
-                amount = amount[0]
-            else:
-                amount = 0
-            month_deposit, total_deposit, actual_apy, i_amount, total_i = calc_savings_data(cursor, pov.get_view_date(), name, amount)
+            
+            amount = get_real_amount(cursor, name, pov)
+            month_deposit, total_deposit, actual_apy, i_amount, total_i = calc_savings_data(cursor, pov, name, amount)
             table.append([name, month_deposit, total_deposit, amount, desired_apy, actual_apy, i_amount, total_i])
         if not table:
             return [['','','','','', '', '']]
         else:
             return table
 
-def calc_savings_data(cursor, view_date, name, real_value):
+def calc_savings_data(cursor, pov, name, real_value):
     total_deposit = 0
     month_deposit = 0
     actual_apy = 0 
@@ -382,13 +377,14 @@ def calc_savings_data(cursor, view_date, name, real_value):
     n_years = 0
     oldest_date = None
 
-    cursor.execute("SELECT date, total FROM transactions WHERE account=:account", {'account': name})
+    cursor.execute("SELECT date, total FROM transactions WHERE account=:account AND date<:date", 
+                   {'account': name, 'date': pov.get_next_month_str()})
     for date, total in cursor.fetchall():
         date = datetime.strptime(date, '%Y-%m-%d')
 
         # Find the total deposit amount and the current viewing month's deposit amount
         total_deposit += total
-        if date.month == view_date.month and date.year == view_date.year: 
+        if date.month == pov.get_view_date().month and date.year == pov.get_view_date().year: 
             month_deposit += total
 
         # Find the oldest date to calc number of years
@@ -396,9 +392,9 @@ def calc_savings_data(cursor, view_date, name, real_value):
             oldest_date = date
         elif oldest_date > date:
             oldest_date = date
-        
-    delta = datetime.today() - oldest_date
-    n_years = delta.days / 365.25
+    if oldest_date:
+        delta = datetime.today() - oldest_date
+        n_years = delta.days / 365.25
     
     # Find the actual apy
     if n_years < 0.002 or total_deposit < 0.01:
@@ -433,6 +429,32 @@ def make_asset_sheet(conn, cursor):
         return table
     else:
         return [['','','','']]
+
+def get_real_amount(cursor, name, pov):
+    # Select this months real value if there is one
+    cursor.execute("SELECT amount FROM track_savings WHERE account=:account AND date=:date",
+                    {'account': name, 'date': pov.get_view_date_full_str()})
+    amount = cursor.fetchone()
+    if amount:
+        amount = amount[0]
+    else:
+        # Select the last months real value if there is one
+        cursor.execute("SELECT amount FROM track_savings WHERE account=:account AND date<=:date ORDER BY date DESC",
+                    {'account': name, 'date': pov.get_view_date_full_str()})
+        amount = cursor.fetchone()
+        if amount:
+            amount = amount[0]
+        else:
+            # Select the total deposit amount if nothing
+            cursor.execute("SELECT total FROM transactions WHERE account=:account AND date<:date",
+                           {'account': name, 'date': pov.get_next_month_str()})
+            transactions = cursor.fetchall()
+            amount = 0
+            if transactions:
+                for trans in transactions:
+                    amount += trans[0]
+    return amount
+
 
 def calc_asset_data(cursor, name):
     pw1 = 0

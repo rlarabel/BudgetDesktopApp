@@ -45,7 +45,7 @@ def main():
             loan_asset_event(sg, conn, c, budget_wc, loan_asset_wc)
 
         elif event == 'Savings' and not savings_wc.get_active_flag():
-            savings_event(sg, conn, c, budget_wc, savings_wc)
+            savings_event(sg, conn, c, pov, budget_wc, savings_wc)
 
         elif event == 'Transactions' and not transaction_wc.get_active_flag():
             transaction_event(sg, conn, c, budget_wc, transaction_wc)
