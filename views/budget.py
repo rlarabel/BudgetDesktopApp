@@ -1,4 +1,4 @@
-def create_budget_win(sg, menu_def, pov, budget_sheet, colors):
+def createBudgetWin(sg, menu_def, pov, budget_sheet, colors):
     # TODO: add a help menu
     # TODO: Add a dynamic 50/40/10 sg.Text
     visible_columns = [False, True, True, True, True, True] 
@@ -7,8 +7,8 @@ def create_budget_win(sg, menu_def, pov, budget_sheet, colors):
         [sg.Text('Account Window', justification='center', size=(67, 1), font='Any 15')],
         [
             sg.Text(size=(55, 1), key='View date', font='Any 11'),
-            sg.Combo(values=pov.get_year_combo(), k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
-            sg.Combo(values=pov.get_all_months(), readonly=True, k='-Month-', enable_events=True)
+            sg.Combo(values=pov.getYearCombo(), k='-Year-', enable_events=True, pad=((160, 1), (1, 1)), bind_return_key=True),
+            sg.Combo(values=pov.getAllMonths(), readonly=True, k='-Month-', enable_events=True)
         ],
         [
             sg.Table(
@@ -29,7 +29,7 @@ def create_budget_win(sg, menu_def, pov, budget_sheet, colors):
 
     return layout
 
-def edit_account_win(sg, account_info, menu):
+def editAccountWin(sg, account_info, menu):
     type_menu = ['spending', 'bills', 'income']
 
     layout = [
@@ -63,7 +63,7 @@ def edit_account_win(sg, account_info, menu):
     return window
 
 
-def edit_category_win(sg, category_info, menu):
+def editCategoryWin(sg, category_info, menu):
     layout = [
         [
             sg.Column(
@@ -92,7 +92,7 @@ def edit_category_win(sg, category_info, menu):
     return window
 
 
-def move_funds_win(sg, category):
+def moveFundsWin(sg, category):
     layout = [
         [
             sg.Text(f"Move funds from Available Cash to {category}: "),
@@ -110,7 +110,7 @@ def move_funds_win(sg, category):
     return window
 
 
-def move_funds_acc_win(sg, menu, account):
+def moveFundsAccWin(sg, menu, account):
     layout = [
         [
             sg.Text(f"Move funds from {account} to "),
@@ -129,7 +129,7 @@ def move_funds_acc_win(sg, menu, account):
     return window
 
 
-def edit_track_acc_win(sg, account_info, menu):
+def editTrackAccWin(sg, account_info, menu):
     if account_info[4]:
         year, month, _ = account_info[4].split('-')
     else:

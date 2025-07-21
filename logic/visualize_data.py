@@ -1,12 +1,13 @@
+# TODO: Add folder and break functions into different files
 # TODO: Turn menus into models
-from logic.create_items import make_account_menu, make_category_menu
-from views.visuals import sel_win
+from logic.create_items import makeAccountMenu, makeCategoryMenu
+from views.visuals import selWin
 from datetime import datetime
 from matplotlib.dates import DateFormatter
 from dateutil.relativedelta import relativedelta
 
-def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=None):
-    acc_menu = make_account_menu(conn, c)
+def addFig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=None):
+    acc_menu = makeAccountMenu(conn, c)
     today = datetime.now()
     flag = 1
 
@@ -66,7 +67,7 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
         colors = ['r','g','b','y']
         labels = [f'Needs: {per_needs}%', f'Savings: {per_savings}%', f'Wants: {per_wants}%', f'Income: {per_income}%']
         title = 'Account Overview'
-        flag = make_pie_chart(plt, x, labels, title, colors)
+        flag = makePieChart(plt, x, labels, title, colors)
         
     elif chart == 'Pie Chart - Allocation (50/%-30/%-20/% Rule)':
         # If a transfer is not recorded as 'TRANSFER' in notes, it will mess with these #'s
@@ -96,10 +97,10 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
         
         title = 'Allocation'
 
-        flag = make_pie_chart(plt, x, labels, title, colors)
+        flag = makePieChart(plt, x, labels, title, colors)
 
     elif chart == 'Pie Chart - Account Spending':
-        acc_spending = account_spending(c, start_date, end_date)
+        acc_spending = accountSpending(c, start_date, end_date)
         
         x = []
         total_amt = 0
@@ -119,13 +120,13 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
             end_date = end_date.strftime('%m-%d-%Y')
             title = f'Account Spending from {start_date} to {end_date}'
 
-        flag = make_pie_chart(plt, x, labels, title)
+        flag = makePieChart(plt, x, labels, title)
 
     elif chart == 'Pie Chart - Category Spending':
-        event, values = sel_win(sg, acc_menu, 'account').read(close=True)
+        event, values = selWin(sg, acc_menu, 'account').read(close=True)
         account = values['-Selection-'] 
         if event == 'Go' and account:
-            cat_spending = category_spending(c, account, start_date, end_date)
+            cat_spending = categorySpending(c, account, start_date, end_date)
             
             x = []
             total_amt = 0
@@ -145,11 +146,11 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
                 end_date = end_date.strftime('%m-%d-%Y')
                 title = f'Category Spending from {start_date} to {end_date}'
 
-            flag = make_pie_chart(plt, x, labels, title)
+            flag = makePieChart(plt, x, labels, title)
 
     elif chart == 'Bar Graph - Account Budgeting & Spending':   
-        acc_spending = account_spending(c, start_date, end_date)
-        acc_total = account_total(c, start_date, end_date)
+        acc_spending = accountSpending(c, start_date, end_date)
+        acc_total = accountTotal(c, start_date, end_date)
         if acc_total:
             spend_list = []
             budget_list = []
@@ -199,14 +200,14 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
                 end_date = end_date.strftime('%m-%d-%Y')
                 title = f'Monthly Avg. Budgeting & Spending by Account from {start_date} to {end_date}'
 
-            flag = make_bar_graph(np, plt, i, title, money, accounts)
+            flag = makeBarGraph(np, plt, i, title, money, accounts)
 
     elif chart == 'Bar Graph - Category Budgeting & Spending':
-        event, values = sel_win(sg, acc_menu, 'account').read(close=True)
+        event, values = selWin(sg, acc_menu, 'account').read(close=True)
         account = values['-Selection-'] 
         if event == 'Go' and account:
-            cat_spending = category_spending(c, account, start_date, end_date)
-            cat_budget = category_budget(c, account, start_date, end_date)
+            cat_spending = categorySpending(c, account, start_date, end_date)
+            cat_budget = categoryBudget(c, account, start_date, end_date)
             if cat_budget:
                 spend_list = []
                 budget_list = []
@@ -257,12 +258,12 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
                     end_date = end_date.strftime('%m-%d-%Y')
                     title = f'Monthly Avg. Category Budgeting & Spending from {start_date} to {end_date}'
 
-                flag = make_bar_graph(np, plt, i, title, money, categories)
+                flag = makeBarGraph(np, plt, i, title, money, categories)
 
     elif chart == "Bar Graph - Saving's Earnings & Deposits":
         # Add in average if given a time frame
-        saving_acc_deposit = savings_deposit(c, start_date, end_date)
-        saving_acc_price = saving_account_price(c, end=end_date)
+        saving_acc_deposit = savingsDeposit(c, start_date, end_date)
+        saving_acc_price = savingAccountPrice(c, end=end_date)
         if saving_acc_deposit:
             deposit_list = []
             earnings_list = []
@@ -309,43 +310,43 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
             end_date = end_date.strftime('%m-%d-%Y')
             title = f'Monthly Avg. Saving Account Deposit & Total Earnings from {start_date} to {end_date}'
 
-        flag = make_bar_graph(np, plt, i, title, data, accounts)
+        flag = makeBarGraph(np, plt, i, title, data, accounts)
 
     elif chart == 'Line Graph - Total Savings':
         # TODO: Needs to have a track_savings DB
         pass
     elif chart == 'Line Graph - Total Wants Spending':
-        wants_spend = account_spending(c, start_date, end_date, ('spending',), 'date')
-        flag = make_line_chart(c, plt, 'USD ($)', 'Total Wants Spending', wants_spend, 'Wants', start_date, end_date, timeframe)
+        wants_spend = accountSpending(c, start_date, end_date, ('spending',), 'date')
+        flag = makeLineChart(c, plt, 'USD ($)', 'Total Wants Spending', wants_spend, 'Wants', start_date, end_date, timeframe)
 
     elif chart == 'Line Graph - Total Needs Spending':
-        needs_spend = account_spending(c, start_date, end_date, ('bills',), 'date')
-        flag = make_line_chart(c, plt, 'USD ($)', 'Total Needs Spending', needs_spend, 'Needs', start_date, end_date, timeframe)
+        needs_spend = accountSpending(c, start_date, end_date, ('bills',), 'date')
+        flag = makeLineChart(c, plt, 'USD ($)', 'Total Needs Spending', needs_spend, 'Needs', start_date, end_date, timeframe)
 
     elif chart == 'Line Graph - Total Account Spending':
         # Get user input
-        event, values = sel_win(sg, acc_menu, 'account').read(close=True)
+        event, values = selWin(sg, acc_menu, 'account').read(close=True)
         account = values['-Selection-']
         # Check user input
         c.execute("SELECT name FROM accounts")
         all_accounts = c.fetchall()
         if (account,) in all_accounts:
             # Find graph's data
-            acc_spend = account_spending(c, start_date, end_date, ('bills','spending'), 'date', account)
+            acc_spend = accountSpending(c, start_date, end_date, ('bills','spending'), 'date', account)
             # Make graph
-            flag = make_line_chart(c, plt, 'USD ($)', f'Total {account} Spending', acc_spend, account, start_date, end_date, timeframe)
+            flag = makeLineChart(c, plt, 'USD ($)', f'Total {account} Spending', acc_spend, account, start_date, end_date, timeframe)
     
     elif chart == 'Line Graph - Total Category Spending':
         # Get user input
-        event, values = sel_win(sg, acc_menu, 'account').read(close=True)
+        event, values = selWin(sg, acc_menu, 'account').read(close=True)
         account = values['-Selection-']
         # Check user input
         c.execute("SELECT name FROM accounts")
         all_accounts = c.fetchall()
         if (account,) in all_accounts:
             # Get more user input
-            cat_menu = make_category_menu(conn, c, account, True)
-            event, values = sel_win(sg, cat_menu, 'category').read(close=True)
+            cat_menu = makeCategoryMenu(conn, c, account, True)
+            event, values = selWin(sg, cat_menu, 'category').read(close=True)
             category = values['-Selection-']
             c.execute("SELECT id FROM categories WHERE name=:name AND account=:account", 
                       {'name': category, 'account': account})
@@ -353,12 +354,12 @@ def add_fig(sg, conn, c, plt, np, chart, timeframe, start_date=None, end_date=No
             if category_id:
                 category_id = category_id[0]
                 # Find graph's data
-                cat_spend = category_spending(c, account, start_date, end_date, category_id, 'date')
+                cat_spend = categorySpending(c, account, start_date, end_date, category_id, 'date')
                 # Make graph
-                flag = make_line_chart(c, plt, 'USD ($)', f'Total {category} Spending', cat_spend, category, start_date, end_date, timeframe)
+                flag = makeLineChart(c, plt, 'USD ($)', f'Total {category} Spending', cat_spend, category, start_date, end_date, timeframe)
     return flag
 
-def account_spending(c, start, end, include_type=('spending', 'bills'), key_type='account', account='all'):
+def accountSpending(c, start, end, include_type=('spending', 'bills'), key_type='account', account='all'):
     acc_spending = {}
 
     if account == 'all':
@@ -387,7 +388,7 @@ def account_spending(c, start, end, include_type=('spending', 'bills'), key_type
     return acc_spending
 
 
-def account_total(c, start, end, include_type=('spending', 'bills')):
+def accountTotal(c, start, end, include_type=('spending', 'bills')):
     acc_total = {}
     c.execute("SELECT date, total, account FROM transactions")
     for date, total, acc in c.fetchall():
@@ -404,7 +405,7 @@ def account_total(c, start, end, include_type=('spending', 'bills')):
                         acc_total[acc] = 0 + total
     return acc_total
 
-def category_spending(c, account, start, end, given_id=None, key_type='category'):
+def categorySpending(c, account, start, end, given_id=None, key_type='category'):
     cat_spending = {}
     if not given_id:
         c.execute("SELECT total, category_id, date FROM transactions WHERE account=:account", {'account': account})
@@ -437,7 +438,7 @@ def category_spending(c, account, start, end, given_id=None, key_type='category'
                             cat_spending[key] = 0 - total
     return cat_spending
 
-def category_budget(c, account, start, end):
+def categoryBudget(c, account, start, end):
     cat_budget = {}
     c.execute("SELECT date, total, category_id FROM track_categories WHERE account=:account", {'account': account})
     for date, total, cat_id in c.fetchall():
@@ -458,7 +459,7 @@ def category_budget(c, account, start, end):
                             cat_budget[cat_name] = 0 + total
     return cat_budget
 
-def savings_deposit(c, start, end):
+def savingsDeposit(c, start, end):
     acc_deposit = {}
     c.execute("SELECT name FROM accounts WHERE type=:type", {'type': 'savings'})
     saving_accounts = c.fetchall()
@@ -473,7 +474,7 @@ def savings_deposit(c, start, end):
                 acc_deposit[account] += deposit
     return acc_deposit
 
-def saving_account_price(c, start=None, end=None, key_type='name'):
+def savingAccountPrice(c, start=None, end=None, key_type='name'):
     acc_price = {}
     c.execute("SELECT name FROM savings")
     for name in c.fetchall():
@@ -498,7 +499,7 @@ def saving_account_price(c, start=None, end=None, key_type='name'):
         #         acc_price[key] = 0 + price
     return acc_price
 
-def fill_in_data(data, start_date, end_date):
+def fillInData(data, start_date, end_date):
     if data and start_date and end_date:
         check_date_obj = start_date
         end_date = end_date.strftime('%m-%Y')
@@ -511,7 +512,7 @@ def fill_in_data(data, start_date, end_date):
         
     return data
 
-def make_pie_chart(plt, x, labels, title, colors=None):
+def makePieChart(plt, x, labels, title, colors=None):
     if x:
         plt.style.use('_mpl-gallery-nogrid')
         _, ax = plt.subplots()
@@ -523,7 +524,7 @@ def make_pie_chart(plt, x, labels, title, colors=None):
     else:
         return -1
 
-def make_bar_graph(np, plt, N, title, data, x_labels):
+def makeBarGraph(np, plt, N, title, data, x_labels):
     if data:        
         width = 0.6  
 
@@ -542,7 +543,7 @@ def make_bar_graph(np, plt, N, title, data, x_labels):
     else:
         return -1
 
-def make_line_chart(c, plt, y_label, title, data, key, start_date, end_date, timeframe='total'):
+def makeLineChart(c, plt, y_label, title, data, key, start_date, end_date, timeframe='total'):
     if data:
         # Initializing data
         date_list = []
@@ -564,7 +565,7 @@ def make_line_chart(c, plt, y_label, title, data, key, start_date, end_date, tim
             else:
                 start_date = one_year_start
             
-        data = fill_in_data(data, start_date, end_date)
+        data = fillInData(data, start_date, end_date)
         # Turn dictionary into two list
         for date, amount in data.items():
             date_list.append(date)

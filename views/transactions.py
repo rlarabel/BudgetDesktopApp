@@ -1,7 +1,7 @@
 from datetime import datetime
 
 
-def create_transaction_window(sg, table, transaction_row_colors):
+def createTransactionWindow(sg, table, transaction_row_colors):
     visible_columns = [False, True, True, True, True, True, True]
     layout = [[sg.Text('Transaction Window', justification='center', font='Any 15', size=(44, 1))],
               [sg.Text('Liquid Possessions:'), sg.Text(size=(15, 1), key='-Funds-'),
@@ -17,7 +17,7 @@ def create_transaction_window(sg, table, transaction_row_colors):
     return window
 
 
-def select_account(sg, account_menu):
+def selectAccount(sg, account_menu):
     layout = [[sg.Column([[sg.Text('Select an account for the transaction')],
                           [sg.OptionMenu(values=account_menu, k='-Account menu-')]])],
               [sg.Button('Single Entry'), sg.Button('CSV Entry'), sg.Button('Exit')]]
@@ -26,7 +26,7 @@ def select_account(sg, account_menu):
     return window              
 
 
-def select_category(sg, cat_menu):
+def selectCategory(sg, cat_menu):
     layout = [[sg.Column([[sg.Text('Select an Category for the transaction')],
                           [sg.OptionMenu(values=cat_menu, k='-Selected Category-')]])],
               [sg.Button('OK'), sg.Button('Exit')]]
@@ -34,7 +34,7 @@ def select_category(sg, cat_menu):
 
     return window   
     
-def create_new_transaction(sg, category_menu, latest_date):
+def createNewTransaction(sg, category_menu, latest_date):
     layout = [[sg.Column([[sg.Text('Date')],
                           [sg.Input(k='-Date-', size=(10, 1), default_text=latest_date), sg.CalendarButton('Choose Date', target='-Date-', format='%m-%d-%Y')]]),
                sg.Column([[sg.Text('Payee')], [sg.Input(key='-Payee-', s=(20, 5))]]),
@@ -48,7 +48,7 @@ def create_new_transaction(sg, category_menu, latest_date):
 
     return window
 
-def edit_transaction_window(sg, edit_row, category, category_menu):
+def editTransactionWindow(sg, edit_row, category, category_menu):
     row_id, date, payee, notes, total, account, _ = edit_row
     date = datetime.strptime(date, '%Y-%m-%d')
     date = date.strftime('%m-%d-%Y')
@@ -66,7 +66,7 @@ def edit_transaction_window(sg, edit_row, category, category_menu):
     return window
 
 
-def get_csv(sg):
+def getCsv(sg):
     layout =  [[sg.In(),sg.FileBrowse(file_types=(("CSV Files", "*.csv"), ), key='-IN-'),  sg.Button('OK'), sg.Button('Exit')]]
     window = sg.Window('Enter Transaction with CSV', layout, keep_on_top=True, finalize=True)
     return window

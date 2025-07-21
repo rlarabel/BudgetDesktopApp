@@ -1,6 +1,5 @@
 *.spec
-*/__pycache__/
+**/__pycache__
 *env/
 build/
 test_app.db
-__pycache__/*

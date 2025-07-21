@@ -1,27 +1,27 @@
-def create_db_tables(conn, cursor):
+def createDbTables(conn, cursor):
     with conn:
         cursor.execute("select name from sqlite_master where type = 'table'")
         tables_list = cursor.fetchall()
 
         if ('accounts',) not in tables_list:
-            make_account_db(conn, cursor)
+            makeAccountsDb(conn, cursor)
         if ('categories',) not in tables_list:
-            make_category_db(conn, cursor)
+            makeCategoriesDb(conn, cursor)
         if ('transactions',) not in tables_list:
-            make_money_flow_db(conn, cursor)
+            makeTransactionsDb(conn, cursor)
         if ('track_categories',) not in tables_list:
-            make_track_categories_db(conn, cursor)
+            makeTrackCategoriesDb(conn, cursor)
         if ('savings',) not in tables_list:
-            make_savings_db(conn, cursor)
+            makeSavingsDb(conn, cursor)
         if ('assets',) not in tables_list:
-            make_assets_db(conn, cursor)
+            makeAssetsDb(conn, cursor)
         if ('loans',) not in tables_list:
-            make_loans_db(conn, cursor)
+            makeLoansDb(conn, cursor)
         if ('track_savings',) not in tables_list:
-            make_track_savings_db(conn, cursor)
+            makeTrackSavingsDb(conn, cursor)
 
 
-def make_money_flow_db(conn, cursor):
+def makeTransactionsDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE transactions (
                         id INTEGER PRIMARY KEY, 
@@ -40,7 +40,7 @@ def make_money_flow_db(conn, cursor):
         conn.commit()
 
 
-def make_track_categories_db(conn, cursor):
+def makeTrackCategoriesDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE track_categories (
                     id INTEGER PRIMARY KEY, 
@@ -56,7 +56,7 @@ def make_track_categories_db(conn, cursor):
 
         conn.commit()
 
-def make_category_db(conn, cursor):
+def makeCategoriesDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE categories (
                     id INTEGER PRIMARY KEY,
@@ -70,7 +70,7 @@ def make_category_db(conn, cursor):
         conn.commit()
 
 
-def make_account_db(conn, cursor):
+def makeAccountsDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE accounts (
                     name TEXT PRIMARY KEY,
@@ -79,7 +79,7 @@ def make_account_db(conn, cursor):
 
         conn.commit()
 
-def make_savings_db(conn, cursor):
+def makeSavingsDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE savings (
                     name TEXT PRIMARY KEY,
@@ -91,7 +91,7 @@ def make_savings_db(conn, cursor):
 
         conn.commit()
 
-def make_assets_db(conn, cursor):
+def makeAssetsDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE assets (
                     name TEXT PRIMARY KEY,
@@ -114,7 +114,7 @@ def make_assets_db(conn, cursor):
 
         conn.commit()
 
-def make_loans_db(conn, cursor):
+def makeLoansDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE loans (
                     name TEXT PRIMARY KEY,
@@ -130,7 +130,7 @@ def make_loans_db(conn, cursor):
 
         conn.commit()
 
-def make_track_savings_db(conn, cursor):
+def makeTrackSavingsDb(conn, cursor):
     with conn:
         cursor.execute(
             """
@@ -144,7 +144,8 @@ def make_track_savings_db(conn, cursor):
                 )
             """
         )
-def delete_savings_db(conn, cursor):
+
+def deleteSavingsDb(conn, cursor):
     with conn:
         cursor.execute("select name from sqlite_master where type = 'table'")
         tables_list = cursor.fetchall()
@@ -162,7 +163,7 @@ def delete_savings_db(conn, cursor):
             cursor.execute("DELETE FROM accounts WHERE type=:type", {"type": "savings"})
         conn.commit()
 
-def delete_assets_db(conn, cursor):
+def deleteAssetsDb(conn, cursor):
     with conn:
         cursor.execute("select name from sqlite_master where type = 'table'")
         tables_list = cursor.fetchall()
@@ -180,7 +181,7 @@ def delete_assets_db(conn, cursor):
             cursor.execute("DELETE FROM accounts WHERE type=:type", {"type": "asset"})
         conn.commit()
 
-def delete_loans_db(conn, cursor):
+def deleteLoansDb(conn, cursor):
     with conn:
         cursor.execute("select name from sqlite_master where type = 'table'")
         tables_list = cursor.fetchall()

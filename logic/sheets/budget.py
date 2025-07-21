@@ -1,5 +1,4 @@
 from datetime import datetime
-import numpy_financial as npf
 
 
 # Description: Creates the budget sheet based on the information the user has provided
@@ -7,7 +6,7 @@ import numpy_financial as npf
 # Outputs: table - A 2D list with each inside table having 7 elements (id, name, monthly budget, upcoming monthly expenses, monthly spending, monthly progress, total [available]),
 #			unallocated_cash_info - a list of dictionary for all the accounts that contains different flags (over allocated, under allocated, uncategorized spending) for the program to warn the user
 #           about 
-def make_budget_sheet(conn, cursor, pov):
+def makeBudgetSheet(conn, cursor, pov):
     with conn:
         # Initialize variables
         table = []
@@ -19,7 +18,7 @@ def make_budget_sheet(conn, cursor, pov):
             uncat_spending_flag = False
             
             # Gets the total of all previous transactions for an account selected from the DB
-            cursor.execute("SELECT total FROM transactions WHERE account=:name AND date<=:date", {'name': account[0], 'date': pov.get_today_str()})
+            cursor.execute("SELECT total FROM transactions WHERE account=:name AND date<=:date", {'name': account[0], 'date': pov.getTodayStr()})
             account_transactions = cursor.fetchall()
             account_total = 0
             for single_trans in account_transactions:
@@ -40,7 +39,7 @@ def make_budget_sheet(conn, cursor, pov):
                 
                 # Gets the name, pre-set budget, money spent the view month, budget, budget left  for each category selected from the DB
                 if category_name != 'Unallocated Cash':
-                    spent, budget, budget_left = get_monthly_category_data(cursor, pov, category_id, account[0])
+                    spent, budget, budget_left = getMonthlyCategoryData(cursor, pov, category_id, account[0])
                     spent = '$' + str(round(spent, 2))
                     budget = '$' + str(round(budget, 2))
                     if type(budget_left) != str:
@@ -49,7 +48,7 @@ def make_budget_sheet(conn, cursor, pov):
                     table.append([category_id, category_name, pre_set, budget, spent, budget_left])
                     
                 else:
-                    available = get_available(cursor, category_id, account[0])  
+                    available = getAvailable(cursor, category_id, account[0])  
                     unallocated_id = category_id
             
             # The unallocated category is the last row added for an account
@@ -66,7 +65,7 @@ def make_budget_sheet(conn, cursor, pov):
             elif available < 0 and not uncat_spending_flag:
                 over_allocated_flag = True
             
-            budget_flag, flagged_dates = check_prev_months(conn, cursor, pov, account[0])
+            budget_flag, flagged_dates = checkPrevMonths(conn, cursor, pov, account[0])
             
             unallocated_cash_info.append({'account': account[0],'over allocated': over_allocated_flag, 'under allocated': under_allocated_flag, 'uncategorized spending': uncat_spending_flag, 'insufficient budget': budget_flag})
         if not table:
@@ -77,33 +76,33 @@ def make_budget_sheet(conn, cursor, pov):
 # Description: Gets the monthly data for each category 
 # Input:
 # Output:
-def get_monthly_category_data(cursor, pov, category_id, account):
-    scope = pov.get_scope()
-    total_spending = get_spendings(cursor, pov, category_id, account, True)
+def getMonthlyCategoryData(cursor, pov, category_id, account):
+    scope = pov.getScope()
+    total_spending = getSpendings(cursor, pov, category_id, account, True)
     
     if scope == 'past':
-        spent = get_spendings(cursor, pov, category_id, account)
-        budget = get_budget(cursor, pov, category_id, account)
-        budget_left = get_budget_left(spent, budget)
+        spent = getSpendings(cursor, pov, category_id, account)
+        budget = getBudget(cursor, pov, category_id, account)
+        budget_left = getBudgetLeft(spent, budget)
     elif scope == 'present':
-        spent = get_spendings(cursor, pov, category_id, account)
-        budget = get_budget(cursor, pov, category_id, account)
-        budget_left = get_budget_left(spent, budget)
+        spent = getSpendings(cursor, pov, category_id, account)
+        budget = getBudget(cursor, pov, category_id, account)
+        budget_left = getBudgetLeft(spent, budget)
     else:
         spent = 0
-        budget = get_budget(cursor, pov, category_id, account) - total_spending
+        budget = getBudget(cursor, pov, category_id, account) - total_spending
         budget_left = '-'    
     
     return spent, budget, budget_left
 
-def get_spendings(cursor, pov, category_id, account, flag=False):
+def getSpendings(cursor, pov, category_id, account, flag=False):
     spending = 0.0
     
     # TODO: Fix spendings
     if not flag:
-        scope = pov.get_scope()
-        start_date = pov.get_view_date_full_str()
-        end_date = pov.get_next_month_str()
+        scope = pov.getScope()
+        start_date = pov.getViewDateStr()
+        end_date = pov.getNextMonthStr()
         cursor.execute("SELECT total, date FROM transactions WHERE category_id=:category_id AND account=:account AND date>=:start_date AND date<:end_date", 
                     {'category_id': category_id, 'account': account, 'start_date': start_date, 'end_date': end_date})
         month_transactions = cursor.fetchall()
@@ -116,7 +115,7 @@ def get_spendings(cursor, pov, category_id, account, flag=False):
                     if datetime.strptime(trans[1], '%Y-%m-%d') < datetime.today():
                         spending -= trans[0] 
     else:
-        start_date = pov.get_this_month_str()
+        start_date = pov.getThisMonthStr()
         cursor.execute("SELECT total FROM transactions WHERE category_id=:category_id AND account=:account AND date=:date",
                        {'category_id': category_id, 'account': account, 'date': start_date})
         all_transactions = cursor.fetchall()
@@ -128,10 +127,10 @@ def get_spendings(cursor, pov, category_id, account, flag=False):
 
 
 
-def get_budget(cursor, pov, category_id, account):
+def getBudget(cursor, pov, category_id, account):
     budget = 0.0
-    scope = pov.get_scope()
-    budget_date = pov.get_view_date_full_str()
+    scope = pov.getScope()
+    budget_date = pov.getViewDateStr()
     
     if scope == 'past' or scope == 'present':
         cursor.execute("SELECT total FROM track_categories WHERE category_id=:category_id AND account=:account AND date=:date", 
@@ -141,7 +140,7 @@ def get_budget(cursor, pov, category_id, account):
             budget = past_budget[0]
     else:
         cursor.execute("SELECT total FROM track_categories WHERE category_id=:id AND account=:account AND date>=:start_date AND date<=:end_date",
-                       {'id': category_id, 'account': account, 'start_date':pov.get_this_month_str(),'end_date': budget_date})
+                       {'id': category_id, 'account': account, 'start_date':pov.getThisMonthStr(),'end_date': budget_date})
         budget_log = cursor.fetchall()
         if budget_log:
             budget_lump_sum = 0
@@ -152,7 +151,7 @@ def get_budget(cursor, pov, category_id, account):
     return budget
 
 
-def get_budget_left(spent, budget):
+def getBudgetLeft(spent, budget):
     # Budget left (current) or spendings covered (Past)
     if budget and budget > 0:
         progress = ((budget - spent) / budget) * 100
@@ -162,7 +161,7 @@ def get_budget_left(spent, budget):
     return progress
 
 
-def get_available(cursor, id, account):
+def getAvailable(cursor, id, account):
     # Total Available
     total = 0
     cursor.execute("SELECT total FROM transactions WHERE category_id=:id AND account=:account",
@@ -181,25 +180,7 @@ def get_available(cursor, id, account):
     
     return total 
 
-
-def set_transaction_row_colors(conn, cursor):
-    with conn:
-        row_color = []
-        i = 0
-        cursor.execute("SELECT category_id, total, notes FROM transactions ORDER BY date DESC")
-        for category_id, total, notes in cursor.fetchall():
-            cursor.execute("SELECT name FROM categories WHERE id=:id", {'id': category_id})
-            category_name = cursor.fetchone()[0]
-            if(notes != 'TRANSFER'):
-                if(category_name == 'Unallocated Cash' and total < 0):
-                    row_color.append((i, 'navy blue', 'red'))
-                elif(i % 2 == 0):
-                    row_color.append((i, 'white', '#7f8f9f'))
-                i += 1
-
-        return row_color
-
-def set_row_colors(conn, cursor, unallocated_cash_info):
+def setRowColors(conn, cursor, unallocated_cash_info):
     with conn:
         account_color = []
         i = 0
@@ -242,9 +223,9 @@ def set_row_colors(conn, cursor, unallocated_cash_info):
          
         return account_color
 
-def check_prev_months(conn, cursor, pov, account):
+def checkPrevMonths(conn, cursor, pov, account):
     flagged_dates = []
-    todays_date = pov.get_this_month_str()
+    todays_date = pov.getThisMonthStr()
     budget_flag = False
     past_flag = False
 
@@ -254,11 +235,11 @@ def check_prev_months(conn, cursor, pov, account):
         category_id = category_id[0]
         cursor.execute("""SELECT id, date, total, category_id FROM track_categories WHERE date<=:date AND account=:account 
                     AND category_id=:category_id ORDER BY date DESC""", 
-                    {'date': pov.get_view_date_full_str(), 'account': account, 'category_id': category_id})
+                    {'date': pov.getViewDateStr(), 'account': account, 'category_id': category_id})
         budget_log = cursor.fetchall()
         cursor.execute("""SELECT date, total FROM transactions WHERE date<:date AND total<0 AND notes!=:note 
                     AND account=:account AND category_id=:category_id ORDER BY date DESC""", 
-                    {'date': pov.get_next_month_str(), 'note': 'TRASNFER', 'account': account, 'category_id': category_id})
+                    {'date': pov.getNextMonthStr(), 'note': 'TRASNFER', 'account': account, 'category_id': category_id})
         spendings = cursor.fetchall()
         if spendings:
             if budget_log:
@@ -278,7 +259,7 @@ def check_prev_months(conn, cursor, pov, account):
                         else:
                             loop_date = None
 
-                    if date_obj.date() < pov.get_this_month().date():
+                    if date_obj.date() < pov.getThisMonth().date():
                         past_flag = True
 
                     if spendings_total > budget:
@@ -304,17 +285,17 @@ def check_prev_months(conn, cursor, pov, account):
                 # When there no more budget left but still unbudgeted spendings left 
                 if i != len(spendings):
                     budget_flag = True
-                    flagged_dates = flag_dates(i, 1, spendings, flagged_dates)
+                    flagged_dates = flagDates(i, 1, spendings, flagged_dates)
             else:
                 # When there is spendings but no budget it cause a flag 
                 budget_flag = True
-                flagged_dates = flag_dates(0, 0, spendings, flagged_dates)
+                flagged_dates = flagDates(0, 0, spendings, flagged_dates)
 
     
     return budget_flag, flagged_dates
 
 
-def flag_dates(i, offset, spendings, flagged_dates):
+def flagDates(i, offset, spendings, flagged_dates):
     for j in range(i + offset, len(spendings)):
         date = spendings[i][0]
         year, month, _ = date.split('-')
@@ -322,198 +303,3 @@ def flag_dates(i, offset, spendings, flagged_dates):
         if not search_date in flagged_dates:
             flagged_dates.append(search_date)
     return flagged_dates
-
-
-def make_transaction_sheet(conn, cursor):
-    with conn:
-        table = []
-        cursor.execute("SELECT * FROM transactions ORDER BY date DESC")
-        all_transactions = cursor.fetchall()
-        for transaction in all_transactions:
-            id_num, date, payee, notes, total, account, category_id = transaction
-            date = datetime.strptime(date, '%Y-%m-%d')
-            date = date.strftime('%m-%d-%Y')
-            cursor.execute("SELECT name FROM categories WHERE id=:category_id", {'category_id': category_id})
-            category_name = cursor.fetchone()[0]
-            if category_name == 'Unallocated Cash':
-                category_name = '-' 
-            if notes != 'TRANSFER':
-                ordered_transaction = [id_num, date, account, category_name, payee,
-                           notes, total]
-                table.append(ordered_transaction)
-        if not table:
-            table = [['', '', '', '', '', '', '']]
-        return table
-
-def make_savings_sheet(conn, cursor, pov):
-    with conn:
-        table = []
-        
-        cursor.execute("SELECT name FROM accounts WHERE type=:type", {'type': 'savings'})
-        savings_accounts = cursor.fetchall()
-        for account in savings_accounts:
-            name = account[0]
-            cursor.execute("SELECT interest FROM savings WHERE name=:name", {'name': name})
-            desired_apy = cursor.fetchone()
-            if desired_apy:
-                desired_apy = desired_apy[0]
-            else:
-                desired_apy = 5.0
-            
-            amount = get_real_amount(cursor, name, pov)
-            month_deposit, total_deposit, actual_apy, i_amount, total_i = calc_savings_data(cursor, pov, name, amount)
-            table.append([name, month_deposit, total_deposit, amount, desired_apy, actual_apy, i_amount, total_i])
-        if not table:
-            return [['','','','','', '', '']]
-        else:
-            return table
-
-def calc_savings_data(cursor, pov, name, real_value):
-    total_deposit = 0
-    month_deposit = 0
-    actual_apy = 0 
-    i_amount = 0 
-    total_i = 0
-    n_years = 0
-    oldest_date = None
-
-    cursor.execute("SELECT date, total FROM transactions WHERE account=:account AND date<:date", 
-                   {'account': name, 'date': pov.get_next_month_str()})
-    for date, total in cursor.fetchall():
-        date = datetime.strptime(date, '%Y-%m-%d')
-
-        # Find the total deposit amount and the current viewing month's deposit amount
-        total_deposit += total
-        if date.month == pov.get_view_date().month and date.year == pov.get_view_date().year: 
-            month_deposit += total
-
-        # Find the oldest date to calc number of years
-        if not oldest_date:
-            oldest_date = date
-        elif oldest_date > date:
-            oldest_date = date
-    if oldest_date:
-        delta = datetime.today() - oldest_date
-        n_years = delta.days / 365.25
-    
-    # Find the actual apy
-    if n_years < 0.002 or total_deposit < 0.01:
-        actual_apy = 0.0 
-    else:
-        actual_apy = round((((real_value/total_deposit)**(1/n_years)) - 1) * 100, 3)
-    
-    # Find the total amount earned from interest
-    i_amount = round(real_value - total_deposit, 2) 
-    
-    # Find the total interest growth
-    if total_deposit < 0.01:
-        total_i = 0.0
-    else:
-        total_i = round((i_amount / total_deposit) * 100, 1)
-
-    return round(month_deposit, 2), round(total_deposit, 2), actual_apy, i_amount, total_i 
-            
-def make_asset_sheet(conn, cursor):
-    with conn:
-        table = []
-
-        cursor.execute("SELECT name FROM accounts WHERE type=:type", {'type': 'asset'})
-        asset_accounts = cursor.fetchall()
-        for account in asset_accounts:
-            name = account[0]
-            cursor.execute("SELECT initial_amount FROM assets WHERE name=:name", {'name': name})
-            amt = cursor.fetchone()[0]
-            pw1, pw2 = calc_asset_data(cursor, name)
-            table.append([name, amt, pw1, pw2])
-    if table:
-        return table
-    else:
-        return [['','','','']]
-
-def get_real_amount(cursor, name, pov):
-    # Select this months real value if there is one
-    cursor.execute("SELECT amount FROM track_savings WHERE account=:account AND date=:date",
-                    {'account': name, 'date': pov.get_view_date_full_str()})
-    amount = cursor.fetchone()
-    if amount:
-        amount = amount[0]
-    else:
-        # Select the last months real value if there is one
-        cursor.execute("SELECT amount FROM track_savings WHERE account=:account AND date<=:date ORDER BY date DESC",
-                    {'account': name, 'date': pov.get_view_date_full_str()})
-        amount = cursor.fetchone()
-        if amount:
-            amount = amount[0]
-        else:
-            # Select the total deposit amount if nothing
-            cursor.execute("SELECT total FROM transactions WHERE account=:account AND date<:date",
-                           {'account': name, 'date': pov.get_next_month_str()})
-            transactions = cursor.fetchall()
-            amount = 0
-            if transactions:
-                for trans in transactions:
-                    amount += trans[0]
-    return amount
-
-
-def calc_asset_data(cursor, name):
-    pw1 = 0
-    pw2 = 0
-    cursor.execute("SELECT * FROM assets WHERE name=:name", {'name': name})
-    _, _, initial_date, _, i_1, amt_1, pv_1, fv_1, date_1, i_2, amt_2, pv_2, fv_2, date_2 = cursor.fetchone()
-    # Calculate Present Worth 1
-    if initial_date and i_1 and pv_1 and fv_1 and date_1:
-        start_date = datetime.strptime(initial_date, '%Y-%m-%d')
-        end_date = datetime.strptime(date_1, '%Y-%m-%d')
-        delta = end_date - start_date
-        n_years = delta.days / 365.25
-        pw1 += pv_1
-        if not amt_1:
-            amt_1 = 0
-        pw1 += npf.pv(i_1/100, n_years, -amt_1, -fv_1)
-        pw1 = round(pw1, 2)
-    else:
-        pw1 = None
-
-    # Calculate Present Worth 2
-    if initial_date and i_2 and pv_2 and fv_2 and date_2:
-        start_date = datetime.strptime(initial_date, '%Y-%m-%d')
-        end_date = datetime.strptime(date_2, '%Y-%m-%d')
-        delta = end_date - start_date
-        n_years = delta.days / 365.25
-        pw2 += pv_2
-        if not amt_2:
-            amt_2 = 0
-        pw2 += npf.pv(i_2/100, n_years, -amt_2, -fv_2)
-        pw2 = round(pw2, 2)
-    else:
-        pw2 = None
-
-    return pw1, pw2
-
-def make_loan_sheet(conn, cursor):
-    with conn:
-        table = []
-
-        cursor.execute("SELECT name FROM accounts WHERE type=:type", {'type': 'loan'})
-
-        for account in cursor.fetchall():
-            name = account[0]
-            cursor.execute("SELECT interest, end_date, present_amt FROM loans WHERE name=:name", {'name': name})
-            interest, end_date, present_loan_amount = cursor.fetchone()
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
-            initial_loan_amt, monthly_pmt = calculate_loan_data(cursor, name, interest, end_date, present_loan_amount)
-            table.append([name, initial_loan_amt, present_loan_amount, interest, end_date.strftime('%m-%d-%Y'), monthly_pmt])
-        if table:
-            return table
-        else:
-            return [['','','','','','']]
-
-def calculate_loan_data(cursor, name, interest, end_date, present_loan_amount):
-    cursor.execute("SELECT initial_amount, start_date FROM loans WHERE name=:name", {"name": name})
-    initial_loan_amt = cursor.fetchone()[0]
-
-    delta = end_date - datetime.today()
-    n_months = (delta.days / 365.25) * 12
-    monthly_pmt = npf.pmt(interest / (100 * 12), n_months, present_loan_amount, 0)
-    return initial_loan_amt, round(monthly_pmt, 2)

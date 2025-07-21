@@ -1,12 +1,12 @@
 from datetime import datetime
 
 
-def create_savings_window(sg, savings_sheet, pov):
+def createSavingsWindow(sg, savings_sheet, pov):
     #TODO: add a help menu
     layout = [
         [sg.Text(size=(55, 1), key='View date', font='Any 11'),
-         sg.Combo(values=pov.get_year_combo(), k='-Year-', enable_events=True, pad=((400, 1), (1, 1)), bind_return_key=True),
-         sg.Combo(values=pov.get_all_months(), readonly=True, k='-Month-', enable_events=True)],
+         sg.Combo(values=pov.getYearCombo(), k='-Year-', enable_events=True, pad=((400, 1), (1, 1)), bind_return_key=True),
+         sg.Combo(values=pov.getAllMonths(), readonly=True, k='-Month-', enable_events=True)],
         [sg.Text('Savings', justification='center', size=(83, 1), font='Any 15')],
         [sg.Table(savings_sheet, key='-Savings table-', auto_size_columns=False,
                   headings=['Account', 'Month Dep Amt ($)', 'Total Dep Amt ($)', 'Real Value ($)', 'Desired APY (%)', 'Real APY (%)', 'Interest Earned ($)', 'Total Growth (%)'],
@@ -19,7 +19,7 @@ def create_savings_window(sg, savings_sheet, pov):
 
     return window
 
-def create_loans_assets_window(sg, loans_sheet, assets_sheet):
+def createLoansAssetsWindow(sg, loans_sheet, assets_sheet):
     layout = [
         [sg.Text('Loans', justification='center', size=(83, 1), font='Any 15')],
         [sg.Table(loans_sheet, key='-Loans table-', auto_size_columns=False,
@@ -38,7 +38,7 @@ def create_loans_assets_window(sg, loans_sheet, assets_sheet):
 
     return window
 
-def edit_savings_win(sg, name, desired_i, real_value):
+def editSavingsWin(sg, name, desired_i, real_value):
     layout = [
         [
             sg.Column([[sg.Text('Name')], [sg.Input(k='-Name-', size=(10, 1), default_text=name)]]),
@@ -56,7 +56,7 @@ def edit_savings_win(sg, name, desired_i, real_value):
     return window
 
 
-def edit_asset_win(sg, data):
+def editAssetWin(sg, data):
     name = data[0]
     initial_date = data[2]
     initial_date = datetime.strptime(initial_date, '%Y-%m-%d')
@@ -105,7 +105,7 @@ def edit_asset_win(sg, data):
 
     return window
 
-def edit_pw_win(sg, data, set):
+def editPresentWorthWin(sg, data, set):
     if set == 0:
         i = data[4]
         amt = data[5]
@@ -141,7 +141,7 @@ def edit_pw_win(sg, data, set):
 
     return window
 
-def edit_loan_win(sg, name, interest, start_date, end_date, initial_amount, present_amt):
+def editLoanWin(sg, name, interest, start_date, end_date, initial_amount, present_amt):
     layout = [
         [
             sg.Column([[sg.Text('Name')], [sg.Input(name, k='-Name-', size=(10,1))]]), 

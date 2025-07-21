@@ -1,4 +1,4 @@
-def create_account_win(sg):
+def createAccountWin(sg):
     layout = [
         [sg.Text('New Account Info', font='Any 15')],
         [
@@ -26,7 +26,7 @@ def create_account_win(sg):
     return window
 
 
-def create_category_win(sg, menu):
+def createCategoryWin(sg, menu):
     layout = [
         [sg.Text('New Category', font='Any 15')],
         [
@@ -45,7 +45,7 @@ def create_category_win(sg, menu):
     return window
 
 
-def create_savings_win(sg):
+def createSavingsWin(sg):
     layout = [
         [
             [sg.Text('Date')],
@@ -70,7 +70,7 @@ def create_savings_win(sg):
     return window
 
 
-def create_loan_win(sg):
+def createLoanWin(sg):
     layout = [
         [
             [sg.Text('Start Date')],
@@ -105,7 +105,7 @@ def create_loan_win(sg):
     return window
 
 
-def create_asset_win(sg):
+def createAssetWin(sg):
     layout = [
         [
             [sg.Text('Start Date')],

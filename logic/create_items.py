@@ -1,7 +1,7 @@
 from datetime import datetime
 import csv
 
-def make_total_funds (conn, cursor):
+def makeTotalFunds(conn, cursor):
     grand_total = 0
     with conn:    
         cursor.execute("SELECT total FROM transactions")
@@ -9,7 +9,7 @@ def make_total_funds (conn, cursor):
            grand_total += temp[0]
     return round(grand_total, 2)
 
-def make_category_menu(conn, cursor, account, edit_flag=False):
+def makeCategoryMenu(conn, cursor, account, edit_flag=False):
     with conn:
         cursor.execute("SELECT name FROM categories WHERE account=:account", {'account': account})
         menu = []
@@ -23,7 +23,7 @@ def make_category_menu(conn, cursor, account, edit_flag=False):
         return tuple(menu)
 
 
-def make_account_menu(conn, cursor, acc_type=['spending', 'bills', 'income', 'savings']):
+def makeAccountMenu(conn, cursor, acc_type=['spending', 'bills', 'income', 'savings']):
     with conn:
         menu = []
         for type in acc_type:
@@ -36,7 +36,7 @@ def make_account_menu(conn, cursor, acc_type=['spending', 'bills', 'income', 'sa
         return tuple(menu)
 
 
-def add_new_account(conn, cursor, data):
+def addNewAccount(conn, cursor, data):
     error_flag = 1
     with conn:
         cursor.execute('SELECT name from accounts WHERE name=:name', {'name': data[0]})
@@ -169,7 +169,7 @@ def add_new_account(conn, cursor, data):
             return error_flag
 
 
-def add_new_category(conn, cursor, data, category_id=None):
+def addNewCategory(conn, cursor, data, category_id=None):
     with conn:
         # Checking for a parent account and duplicate categories 
         cursor.execute("SELECT * FROM accounts WHERE name=:name", {'name': data['-Account name-']})
@@ -190,7 +190,7 @@ def add_new_category(conn, cursor, data, category_id=None):
         conn.commit()
 
 
-def add_transaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=True):
+def addTransaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=True):
     with conn:
         error_flag = 1
         user_date = data['-Date-']
@@ -273,7 +273,7 @@ def add_transaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=
         else:
             return error_flag
 
-def csv_entry(conn, cursor, account, filename):
+def csvEntry(conn, cursor, account, filename):
     date_column = -1 
     payee_column = -1
     notes_column = -1
@@ -306,7 +306,7 @@ def csv_entry(conn, cursor, account, filename):
                     '-Notes-': notes, 
                     '-Date-': date, 
                     '-Selected Category-': 'Unallocated Cash'}
-            entry_flag = add_transaction(conn, cursor, data, account, None, False)
+            entry_flag = addTransaction(conn, cursor, data, account, None, False)
             if entry_flag != 1:
                 return entry_flag
 

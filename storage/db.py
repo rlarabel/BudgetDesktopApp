@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-def initialize_db(op_sys):
+def initializeDb(op_sys):
     if op_sys == 'windows':
         user_path = os.environ['USERPROFILE']
     elif op_sys == 'linux':    

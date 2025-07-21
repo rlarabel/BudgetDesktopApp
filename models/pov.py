@@ -1,7 +1,7 @@
 from datetime import datetime
 from dateutil import relativedelta
 
-class pov_controller:
+class PovController:
     def __init__(self):
         self.year_combo = []
         for i in range(datetime.now().year - 3, datetime.now().year + 5):
@@ -12,7 +12,7 @@ class pov_controller:
         self.view_date = self.this_month
         self.next_month = self.view_date + relativedelta.relativedelta(months=1)
 
-    def change_view_date(self, values):
+    def changeViewDate(self, values):
         error_flag = 1
         if values['-Month-']:
             try:
@@ -31,16 +31,16 @@ class pov_controller:
         
         return error_flag
     
-    def get_view_date_full_str(self):
+    def getViewDateStr(self):
         return self.view_date.strftime('%Y-%m-%d')
     
-    def get_today_str(self):
+    def getTodayStr(self):
         return self.today.strftime('%Y-%m-%d')
     
-    def pretty_view_date(self):
+    def prettyViewDate(self):
         return self.view_date.strftime('%b %Y')
     
-    def get_scope(self):
+    def getScope(self):
         if self.today.date() == self.view_date.date():
             scope = 'present'
         elif self.today.date() < self.view_date.date():
@@ -49,26 +49,26 @@ class pov_controller:
             scope = 'past'
         return scope
     
-    def get_next_month_str(self):
+    def getNextMonthStr(self):
         return self.next_month.strftime('%Y-%m-%d')
     
-    def get_this_month_str(self):
+    def getThisMonthStr(self):
         return self.this_month.strftime('%Y-%m-%d')
 
-    def get_view_date(self):
+    def getViewDate(self):
         return self.view_date
     
-    def get_next_month(self):
+    def getNextMonth(self):
         return self.next_month
     
-    def get_today(self):
+    def getToday(self):
         return self.today
     
-    def get_all_months(self):
+    def getAllMonths(self):
         return self.all_months
     
-    def get_year_combo(self):
+    def getYearCombo(self):
         return self.year_combo
     
-    def get_this_month(self):
+    def getThisMonth(self):
         return self.this_month

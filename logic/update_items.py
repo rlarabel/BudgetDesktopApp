@@ -1,6 +1,6 @@
 from datetime import datetime
 
-def update_funds(conn, cursor):
+def updateFunds(conn, cursor):
     with conn:
         cursor.execute("SELECT * FROM money_flow")
         gross_funds = 0
@@ -28,7 +28,7 @@ def update_funds(conn, cursor):
         return round(available_budget, 2), round(gross_funds, 2)
 
 
-def update_category_budget(conn, cursor, row):
+def updateCategoryBudget(conn, cursor, row):
     with conn:
         update_row = {
             'id': row[0],
@@ -39,7 +39,7 @@ def update_category_budget(conn, cursor, row):
         conn.commit()
         
 
-def update_account_track(conn, cursor, row):
+def updateAccountTrack(conn, cursor, row):
     with conn:
         update_row = {
             'date': row[0],
@@ -51,7 +51,7 @@ def update_account_track(conn, cursor, row):
         conn.commit()
 
 
-def update_transaction(conn, cursor, data, row_id, account_name):
+def updateTransaction(conn, cursor, data, row_id, account_name):
     with conn:
         error_flag = 1
         user_date = data['-Date-']
@@ -83,10 +83,10 @@ def update_transaction(conn, cursor, data, row_id, account_name):
             error_flag = -4
         if account_type == 'spending' or account_type == 'bills':
             if user_total < 0:
-                error_flag = sql_trans_update(cursor, row_id, user_date, data, 
+                error_flag = sqlTransUpdate(cursor, row_id, user_date, data, 
                                             user_total, account_name, category_id, data['-Selected Category-'])
             else:
-                error_flag = sql_trans_update(cursor, row_id, user_date, data, 
+                error_flag = sqlTransUpdate(cursor, row_id, user_date, data, 
                                             user_total, account_name, category_id, 'Unallocated Cash')
         else:
             error_flag = -5
@@ -99,7 +99,7 @@ def update_transaction(conn, cursor, data, row_id, account_name):
         return error_flag
 
 
-def sql_trans_update(cursor, row_id, user_date, data, user_total, account_name, category_id, cat_name):
+def sqlTransUpdate(cursor, row_id, user_date, data, user_total, account_name, category_id, cat_name):
     cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", {'name': cat_name, 'account': account_name})
     category_id = cursor.fetchone()
     if category_id:
@@ -115,7 +115,7 @@ def sql_trans_update(cursor, row_id, user_date, data, user_total, account_name, 
     return 1
 
 
-def update_month_combo(months, user_date):
+def updateMonthCombo(months, user_date):
     combo = []
     user_year, user_month = user_date.split('-')
     current_year = int(datetime.now().year)
@@ -128,7 +128,7 @@ def update_month_combo(months, user_date):
 
     return combo
 
-def update_savings_acc(c, conn, sg, values, name, desired_i, amount, date, state):
+def updateSavingsAcc(c, conn, sg, values, name, desired_i, amount, date, state):
     # Initial Variables
     base_str = "was updated"
     i_flag = 0
@@ -174,7 +174,7 @@ def update_savings_acc(c, conn, sg, values, name, desired_i, amount, date, state
         sg.popup(base_str)
         conn.commit()
 
-def update_asset(c, conn, sg, values, data, assets_name):
+def updateAsset(c, conn, sg, values, data, assets_name):
     c.execute("SELECT name FROM accounts")
     taken_names = c.fetchall()
     initial_flag = 0
@@ -213,7 +213,7 @@ def update_asset(c, conn, sg, values, data, assets_name):
         #sg.popup(f"Changed {data[0]} to {values['-Name-']}")
     
 
-def update_asset_2(c, conn, sg, values, data, set):
+def updateAsset2(c, conn, sg, values, data, set):
     name = data[0]
     if set == 0:
         i = data[4]
@@ -292,7 +292,7 @@ def update_asset_2(c, conn, sg, values, data, set):
         sg.popup(base_str)
         conn.commit()
 
-def update_loan(c, conn, sg, values, name, interest, start_date_obj, end_date_obj, initial_amount, present_amt):
+def updateLoan(c, conn, sg, values, name, interest, start_date_obj, end_date_obj, initial_amount, present_amt):
     # Initial Variables
     base_str = "was updated"
     i_flag = 0

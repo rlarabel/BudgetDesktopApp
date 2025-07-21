@@ -1,4 +1,4 @@
-def create_visual_win(sg):
+def createVisualWin(sg):
     chart_menu = [
         'Pie Chart - Account Overview', 
         'Pie Chart - Allocation (50/%-30/%-20/% Rule)',
@@ -36,7 +36,7 @@ def create_visual_win(sg):
     window = sg.Window('Data Visualization', layout, location=(0,0), finalize=True, element_justification='center', font='Helvetica 18')
     return window
 
-def sel_win(sg, menu, text):
+def selWin(sg, menu, text):
     layout = [
         [sg.Text(f'Pick the {text} to view'), sg.Combo(values=menu, readonly=True, k='-Selection-')],
         [sg.Button('Go')]
