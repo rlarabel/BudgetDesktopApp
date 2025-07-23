@@ -1,6 +1,6 @@
 import FreeSimpleGUI as sg
-from logic.make_db import createDbTables, deleteSavingsDb, deleteAssetsDb, deleteLoansDb
-from storage.db import initializeDb
+from storage.make_db import createDbTables, deleteSavingsDb, deleteAssetsDb, deleteLoansDb
+from storage.init_db import initializeDb
 from models.ui_controller import BudgetWindow, TransactionWindow, SavingsWindow, LoanAssetWindow, VisualWindow
 from models.pov import PovController
 from events.menu import menu as menu_event
