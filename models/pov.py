@@ -41,9 +41,9 @@ class PovController:
         return self.view_date.strftime('%b %Y')
     
     def getScope(self):
-        if self.today.date() == self.view_date.date():
+        if self.this_month.date() == self.view_date.date():
             scope = 'present'
-        elif self.today.date() < self.view_date.date():
+        elif self.this_month.date() < self.view_date.date():
             scope = 'future'
         else:
             scope = 'past'

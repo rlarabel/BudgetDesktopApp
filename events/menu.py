@@ -1,15 +1,16 @@
-from logic.create_items import addNewAccount, addNewCategory
+from logic.create_items import addNewAccount, addNewCategory, makeAccountMenu
 from views.menu import createAccountWin, createSavingsWin, createAssetWin, createLoanWin, createCategoryWin
 
 
-def menu(sg, conn, c, event, account_menu):
+def menu(sg, conn, c, event):
     if event == 'Add Account':
-        add_account(sg, conn, c)
+        addAccount(sg, conn, c)
     elif event == 'Add Category':
-        add_category(sg, conn, c, account_menu)
+        account_menu = makeAccountMenu(conn, c, ['spending', 'bills'])
+        addCategory(sg, conn, c, account_menu)
 
 
-def add_account(sg, conn, c):
+def addAccount(sg, conn, c):
     event, values = createAccountWin(sg).read(close=True)
     if event == 'Save':
         create_acc = values['-New account-']
@@ -56,7 +57,7 @@ def add_account(sg, conn, c):
             sg.popup(f'There is missing info needed to create the account')
 
 
-def add_category(sg, conn, c, account_menu, ):
+def addCategory(sg, conn, c, account_menu):
     event, values = createCategoryWin(sg, account_menu).read(close=True)
     if event == 'Save':
         create_cat = values['-New category-']

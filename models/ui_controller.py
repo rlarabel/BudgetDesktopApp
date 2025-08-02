@@ -101,14 +101,21 @@ class TransactionWindow(WindowController):
     
     def update(self, conn, c):
         self.window.BringToFront()
-        transaction_sheet = makeTransactionSheet(conn, c)
-        transaction_row_colors = setTransactionRowColors(conn, c)
-        self.window['-Trans table-'].update(transaction_sheet, row_colors=transaction_row_colors)
+        self.sheet = makeTransactionSheet(conn, c)
+        row_colors = setTransactionRowColors(conn, c)
+        self.window['-Trans table-'].update(self.sheet, row_colors=row_colors)
         total_funds = makeTotalFunds(conn, c)
         self.window['-Funds-'].update(total_funds)
     
     def getValidateKeys(self):
         return self.__validate_keys
+    
+    def getTransIdFromClick(self):
+        if self.values['-Trans table-']:
+            row_int = self.values['-Trans table-'][0]
+            trans_id = self.sheet[row_int][0]
+            account = self.sheet[row_int][2]
+            return trans_id, account
 
 
 class SavingsWindow(WindowController):
@@ -122,8 +129,8 @@ class SavingsWindow(WindowController):
     
     def update(self, conn, c, pov):
         self.window.BringToFront()
-        savings_sheet = makeSavingsSheet(conn, c, pov)
-        self.window['-Savings table-'].update(savings_sheet)
+        self.sheet = makeSavingsSheet(conn, c, pov)
+        self.window['-Savings table-'].update(self.sheet)
         self.window['View date'].update(pov.prettyViewDate())
 
 

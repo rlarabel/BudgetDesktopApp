@@ -12,14 +12,13 @@ def transaction(sg, conn, c, budget_wc, transaction_wc):
     while transaction_wc.getActiveFlag():
         transaction_wc.wait()
         event = transaction_wc.getEvent()
-        values = transaction_wc.getValues()
         if event in ('Back To Accounts', None):
             transaction_wc.close()
             budget_wc.unhide()
         elif event == 'New Transaction':
             new_transaction(sg, conn, c, transaction_wc.getValidateKeys())
         elif event == '-Trans table-':
-            edit_transaction(sg, conn, c, values, transaction_wc.getSheet(), transaction_wc.getValidateKeys())
+            edit_transaction(sg, conn, c, transaction_wc)
 
         if transaction_wc.getActiveFlag():
             transaction_wc.update(conn, c)
@@ -69,29 +68,29 @@ def new_transaction(sg, conn, c, keys_to_validate):
                 sg.popup('Missing date and/or total header(s) in csv file: unable to add the transactions')
 
 
-def edit_transaction(sg, conn, c, values, transaction_sheet, keys_to_validate):
+def edit_transaction(sg, conn, c, transaction_wc):
     transaction_row = None
-    if values['-Trans table-']:
-        row_int = values['-Trans table-'][0]
-        trans_id = transaction_sheet[row_int][0]
-        selected_account = transaction_sheet[row_int][2]
-        c.execute("SELECT * FROM transactions WHERE id=:id", {'id': trans_id})
-        transaction_row = c.fetchone()
+    userClick = transaction_wc.getTransIdFromClick()
+    if userClick:
+        trans_id, account = userClick
+    else:
+        trans_id, account = None, None
+    c.execute("SELECT * FROM transactions WHERE id=:id", {'id': trans_id})
+    transaction_row = c.fetchone()
     if transaction_row:
-
-        category_menu = makeCategoryMenu(conn, c, selected_account)
+        category_menu = makeCategoryMenu(conn, c, account)
         c.execute("SELECT name FROM categories WHERE id=:id", {'id': transaction_row[6]})
         
         event, values = editTransactionWindow(sg, transaction_row, c.fetchone()[0] ,category_menu).read(close=True)
         if event == 'Save':
             set_transaction = True
 
-            for validate in keys_to_validate:
+            for validate in transaction_wc.keysToValidate():
                 if not values[validate]:
                     set_transaction = False
 
             if set_transaction:      # This is where the transaction is updated
-                check = updateTransaction(conn, c, values, trans_id, selected_account)
+                check = updateTransaction(conn, c, values, trans_id, account)
                 if check == 1:
                     sg.popup('Transaction was updated')
                 else:
