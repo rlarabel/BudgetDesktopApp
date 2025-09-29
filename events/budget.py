@@ -26,7 +26,7 @@ def select_account(sg, conn, c, pov, account_menu, row_name, account_row):
     if event == 'Update':																		# Transfer money to a different account
         transfer(sg, conn, c, pov, values, row_name)
     elif event == 'Edit Account':																# Edit Account
-        edit_account(sg, conn, c, account_row, row_name)
+        edit_account(sg, conn, c, account_row, account_menu,row_name)
 
 
 def select_category(sg, conn, c, category_id, row_name, pov):

@@ -3,3 +3,4 @@
 *env/
 build/
 test_app.db
+.git-old/

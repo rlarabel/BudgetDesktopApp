@@ -15,7 +15,15 @@ def makeBudgetSheet(conn, cursor, pov):
         flagged_dates = []
         
         # Loop through all accounts 
-        cursor.execute("SELECT * FROM accounts WHERE type=:spending OR type=:bills OR type=:income", {'spending': 'spending', 'bills': 'bills', 'income': 'income'})
+        cursor.execute("""
+                       SELECT * 
+                       FROM accounts 
+                       WHERE type=:spending OR type=:bills OR type=:income
+                       ORDER BY CASE WHEN type=:income THEN 1
+                       ELSE 2 END
+                       """, 
+                       {'spending': 'spending', 'bills': 'bills', 'income': 'income'}
+        )
         for account in cursor.fetchall():
             uncat_spending_flag = False
             budget_flag = False
@@ -28,7 +36,7 @@ def makeBudgetSheet(conn, cursor, pov):
                 account_total += single_trans[0]       
             
             # Creates account row in budget sheet
-            table.append(['',account[0], '', '', '', '$' + str(round(account_total, 2))])
+            table.append(['',account[0], '', '', '', 'Account Total:', '$' + str(round(account_total, 2))])
             
             # Loop through all categories
             cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
@@ -49,15 +57,17 @@ def makeBudgetSheet(conn, cursor, pov):
                     if type(budget_left) != str:
                         budget_left = str(round(budget_left, 2)) + '%'
 
-                    table.append([category_id, category_name, pre_set, budget, spent, budget_left])
+                    table.append([category_id, category_name, pre_set, budget, spent, '', budget_left])
                     
                 else:
                     available = getAvailable(cursor, category_id, account[0])  
                     unallocated_id = category_id
             
             # The unallocated category is the last row added for an account
-            unallocated_category = [unallocated_id,'Available Cash', '', '', '', '$' + str(round(available, 2))]
-            table.append(unallocated_category)
+            if account[1] != 'income':
+                unallocated_category = [unallocated_id,'Available Cash', '', '', '', '', '$' + str(round(available, 2))]
+                table.append(unallocated_category)
+            table.append(['','', '', '', '', '', ''])
             
             # Flags for over or under budgeting and spending
             cursor.execute("SELECT id FROM transactions WHERE account=:name AND category_id=:category_id AND total<:total AND notes!=:notes ", 
@@ -73,7 +83,7 @@ def makeBudgetSheet(conn, cursor, pov):
             
             unallocated_cash_info.append({'account': account[0],'over allocated': over_allocated_flag, 'under allocated': under_allocated_flag, 'uncategorized spending': uncat_spending_flag, 'insufficient budget': budget_flag})
         if not table:
-            table = [['','', '', '', '', '']]
+            table = [['','', '', '', '', '', '']]
         
         return table, unallocated_cash_info
 
@@ -194,7 +204,15 @@ def setRowColors(conn, cursor, unallocated_cash_info):
         account_color = []
         i = 0
         # Loop through all accounts
-        cursor.execute("SELECT * FROM accounts WHERE type=:spending OR type=:bills OR type=:income ", {'spending': 'spending', 'bills': 'bills', 'income': 'income'})
+        cursor.execute("""
+                        SELECT * 
+                        FROM accounts 
+                        WHERE type=:spending OR type=:bills OR type=:income 
+                        ORDER BY CASE WHEN type=:income THEN 1
+                        ELSE 2 END
+                       """, 
+                    {'spending': 'spending', 'bills': 'bills', 'income': 'income'}
+        )
         for account in cursor.fetchall():
             # Check if the account has any flags, if so store the flags in color_info and update the row color
             color_info = None
@@ -217,18 +235,21 @@ def setRowColors(conn, cursor, unallocated_cash_info):
                 if cat[0] != 'Unallocated Cash':
                     if(i % 2 == 0):
                         account_color.append((i, 'white', '#7f8f9f'))
+                    i += 1
+            if account[1] == 'income':
                 i += 1
-            
-            # Turn the available cash row red if:
-            # The user bugets more many than in the account
-            # User spend money without categorizing it
-            # User doesn't budget enough in a previous month 
-            if color_info['over allocated'] or color_info['uncategorized spending'] or color_info['insufficient budget']:
-                account_color.append((i-1, 'navy blue', 'red'))
-            elif color_info['under allocated']:
-                account_color.append((i-1, 'navy blue', 'yellow'))
             else:
-                account_color.append((i-1, 'navy blue', 'green'))
+                i += 2
+                # Turn the available cash row red if:
+                # The user bugets more many than in the account
+                # User spend money without categorizing it
+                # User doesn't budget enough in a previous month 
+                if color_info['over allocated'] or color_info['uncategorized spending'] or color_info['insufficient budget']:
+                    account_color.append((i-2, 'navy blue', 'red'))
+                elif color_info['under allocated']:
+                    account_color.append((i-2, 'navy blue', 'yellow'))
+                else:
+                    account_color.append((i-2, 'navy blue', 'green'))
          
         return account_color
 
