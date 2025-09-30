@@ -12,7 +12,7 @@ def makeBudgetSheet(conn, cursor, pov):
         # Initialize variables
         table = []
         unallocated_cash_info = []
-        flagged_dates = []
+        flagged_date = None
         
         # Loop through all accounts 
         cursor.execute("""
@@ -26,7 +26,6 @@ def makeBudgetSheet(conn, cursor, pov):
         )
         for account in cursor.fetchall():
             uncat_spending_flag = False
-            budget_flag = False
             
             # Gets the total of all previous transactions for an account selected from the DB
             cursor.execute("SELECT total FROM transactions WHERE account=:name AND date<=:date", {'name': account[0], 'date': pov.getTodayStr()})
@@ -46,12 +45,16 @@ def makeBudgetSheet(conn, cursor, pov):
                 over_allocated_flag = False
                 category_id = category[0]
                 category_name = category[1]
-                pre_set = '$' + str(round(category[3], 2))
+                if pov.getScope() == 'past':
+                    pre_set = '-'
+                else:
+                    pre_set = '$' + str(round(category[3], 2))
                 
                 # Gets the name, pre-set budget, money spent the view month, budget, budget left  for each category selected from the DB
                 if category_name != 'Unallocated Cash':
-                    rollover, budget_flag, flagged_dates = checkPrevMonths(cursor, pov, account[0], category_id, budget_flag, flagged_dates)
-                    spent, budget, budget_left = getMonthlyCategoryData(cursor, pov, category_id, account[0], rollover)
+                    flagged_date = checkPrevMonths(conn, cursor, pov, account[0], category_id)
+                    spent, budget, budget_left = getMonthlyCategoryData(cursor, pov, category_id, account[0])
+                    
                     spent = '$' + str(round(spent, 2))
                     budget = '$' + str(round(budget, 2))
                     if type(budget_left) != str:
@@ -81,6 +84,11 @@ def makeBudgetSheet(conn, cursor, pov):
             
             
             
+            if flagged_date:
+                budget_flag = True
+            else:
+                budget_flag = False
+
             unallocated_cash_info.append({'account': account[0],'over allocated': over_allocated_flag, 'under allocated': under_allocated_flag, 'uncategorized spending': uncat_spending_flag, 'insufficient budget': budget_flag})
         if not table:
             table = [['','', '', '', '', '', '']]
@@ -90,60 +98,30 @@ def makeBudgetSheet(conn, cursor, pov):
 # Description: Gets the monthly data for each category 
 # Input:
 # Output:
-def getMonthlyCategoryData(cursor, pov, category_id, account, rollover):
-    scope = pov.getScope()
-    total_spending = getSpendings(cursor, pov, category_id, account, True)
-    
-    if scope == 'past':
-        spent = getSpendings(cursor, pov, category_id, account)
-        budget = getBudget(cursor, pov, category_id, account)
-        if spent < budget:
-            budget = spent
-        budget_left = getBudgetLeft(spent, budget)
+def getMonthlyCategoryData(cursor, pov, category_id, account):
 
-    elif scope == 'present':
-        spent = getSpendings(cursor, pov, category_id, account)
-        budget = getBudget(cursor, pov, category_id, account)
-        budget += rollover
-        budget_left = getBudgetLeft(spent, budget)
-    else:
-        spent = 0
-        budget = getBudget(cursor, pov, category_id, account) - total_spending
-        budget += rollover
-        budget_left = '-'    
+    spent = getSpendings(cursor, pov, category_id, account)
+    budget = getBudget(cursor, pov, category_id, account)
+    budget_left = getBudgetLeft(spent, budget)
+
+
     
     return spent, budget, budget_left
 
-def getSpendings(cursor, pov, category_id, account, flag=False):
-    spending = 0.0
-    
-    # TODO: Fix spendings
-    if not flag:
-        scope = pov.getScope()
-        start_date = pov.getViewDateStr()
-        end_date = pov.getNextMonthStr()
-        cursor.execute("SELECT total, date FROM transactions WHERE category_id=:category_id AND account=:account AND date>=:start_date AND date<:end_date", 
-                    {'category_id': category_id, 'account': account, 'start_date': start_date, 'end_date': end_date})
-        month_transactions = cursor.fetchall()
-        if month_transactions:
-            if scope == 'past':
-                for trans in month_transactions:
-                    spending -= trans[0]
-            elif scope == 'present':
-                for trans in month_transactions:
-                    if datetime.strptime(trans[1], '%Y-%m-%d') < datetime.today():
-                        spending -= trans[0] 
-    else:
-        start_date = pov.getThisMonthStr()
-        cursor.execute("SELECT total FROM transactions WHERE category_id=:category_id AND account=:account AND date=:date",
-                       {'category_id': category_id, 'account': account, 'date': start_date})
-        all_transactions = cursor.fetchall()
-        if all_transactions:
-            for trans in all_transactions:
-                spending -= trans[0]
+
+def getSpendings(cursor, pov, category_id, account):
+    start_date = pov.getViewDateStr()
+    end_date = pov.getNextMonthStr()
+    spending = 0
+
+    cursor.execute("SELECT total, date FROM transactions WHERE category_id=:category_id AND account=:account AND date>=:start_date AND date<:end_date", 
+                {'category_id': category_id, 'account': account, 'start_date': start_date, 'end_date': end_date})
+    month_transactions = cursor.fetchall()
+    if month_transactions:
+        for trans in month_transactions:
+            spending -= trans[0]
     
     return spending
-
 
 
 def getBudget(cursor, pov, category_id, account):
@@ -154,9 +132,9 @@ def getBudget(cursor, pov, category_id, account):
     if scope == 'past' or scope == 'present':
         cursor.execute("SELECT total FROM track_categories WHERE category_id=:category_id AND account=:account AND date=:date", 
                 {'category_id': category_id, 'account': account, 'date': budget_date})
-        past_budget = cursor.fetchone()
-        if past_budget:
-            budget = past_budget[0]
+        month_budget = cursor.fetchone()
+        if month_budget:
+            budget = month_budget[0]
     else:
         cursor.execute("SELECT total FROM track_categories WHERE category_id=:id AND account=:account AND date>=:start_date AND date<=:end_date",
                        {'id': category_id, 'account': account, 'start_date':pov.getThisMonthStr(),'end_date': budget_date})
@@ -254,9 +232,8 @@ def setRowColors(conn, cursor, unallocated_cash_info):
         return account_color
 
 # Check the previous months of each category for the desired account
-def checkPrevMonths(cursor, pov, account, category_id, budget_flag, flagged_dates):
-    rollover = 0
-
+def checkPrevMonths(conn, cursor, pov, account, category_id):
+    flagged_date = None
     # Get first transaction for a category
     cursor.execute("""SELECT date FROM transactions WHERE total<0 AND notes!=:note 
                 AND account=:account AND category_id=:category_id ORDER BY date ASC""", 
@@ -275,41 +252,71 @@ def checkPrevMonths(cursor, pov, account, category_id, budget_flag, flagged_date
             cursor.execute("""SELECT total FROM transactions WHERE date>=:start_date AND date<:end_date 
                            AND total<0 AND account=:account AND category_id=:category_id ORDER BY date ASC""", 
                            {'start_date': date_str, 'end_date': next_month_str, 'account': account, 'category_id': category_id})
-            spendings = cursor.fetchone()
+            spendings = cursor.fetchall()
             if spendings:
                 # Check if the budget for that month covers the spending for that month
                 # if it doesn't, flag the first date that it happens 
                 spent = 0
                 for amount in spendings:
-                    spent += amount
+                    if amount:
+                        spent += amount[0]
                 cursor.execute("""SELECT total FROM track_categories 
                                WHERE date=:date AND account=:account AND category_id=:category_id""", 
                                {'date': date_str, 'account': account, 'category_id': category_id})
-                budget = cursor.fetchone()
-                if budget:
-                    budget = budget[0]
+                past_budget = cursor.fetchone()
+                if past_budget:
+                    past_budget = past_budget[0]
                 else:
-                    budget = 0
-                if spent > budget and not flagged_date:
+                    past_budget = 0
+                # Budget doesn't cover spendings, flag the date and warn user
+                if -spent >= (past_budget + 0.01) and not flagged_date:
                     flagged_date = date_str
-                rollover += (budget + spent)
+                # Budget cover too much of spendings 
+                elif -spent <= (past_budget - 0.01):
+                    # Update the data base
+                    rollover = (past_budget + spent)
+                    cursor.execute("""SELECT total FROM track_categories 
+                                   WHERE date=:date AND account=:account AND category_id=:category_id""", 
+                                   {'date': pov.getThisMonthStr(), 'account': account, 'category_id': category_id}
+                    )
+                    present_budget = cursor.fetchone()
+                    if present_budget:
+                        present_budget = present_budget[0]
+                        cursor.execute("""UPDATE track_categories 
+                                       SET total=:total 
+                                       WHERE date=:date AND account=:account AND category_id=:category_id""", 
+                                       {
+                                           'total': present_budget + rollover, 
+                                           'date': pov.getThisMonthStr(), 
+                                           'account': account, 
+                                           'category_id': category_id
+                                        }
+                        )
+                    else:
+                        cursor.execute("""INSERT INTO track_categories VALUES (:id, :date, :total, :account, :category_id)""",
+                                       {
+                                           'id': None, 
+                                           'date': pov.getThisMonthStr(), 
+                                           'total': rollover, 
+                                           'account': account, 
+                                           'category_id': category_id
+                                        }
+                        )
+                    cursor.execute("""UPDATE track_categories SET total=:total 
+                                   WHERE date=:date AND account=:account AND category_id=:category_id""", 
+                                   {
+                                       'total': past_budget - rollover, 
+                                       'date': date_str,
+                                       'account': account, 
+                                       'category_id': category_id
+                                    }
+                    )
+                    conn.commit()
+                        
+            
+                
             date_obj = next_month
-        
-        # Did not budget enough to cover all spendings, flag budget
-        if rollover < 0:  
-            rollover = 0
-            budget_flag = True
 
 
     
-    return rollover, budget_flag, flagged_dates
-
-
-def flagDates(i, offset, spendings, flagged_dates):
-    for j in range(i + offset, len(spendings)):
-        date = spendings[i][0]
-        year, month, _ = date.split('-')
-        search_date = year + '-' + month
-        if not search_date in flagged_dates:
-            flagged_dates.append(search_date)
-    return flagged_dates
+    return flagged_date
