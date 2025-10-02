@@ -72,3 +72,4 @@ class PovController:
     
     def getThisMonth(self):
         return self.this_month
+    

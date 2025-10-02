@@ -8,10 +8,10 @@ def visual(sg, conn, c, budget_wc, visual_wc):
     budget_wc.hide()
     visual_wc.create(sg)
     
-    while visual_wc.get_active_flag():
+    while visual_wc.getActiveFlag():
         visual_wc.wait()
-        event = visual_wc.get_event()
-        values = visual_wc.get_values()
+        event = visual_wc.getEvent()
+        values = visual_wc.getValues()
 
         if event in ('Back', None):
             visual_wc.close()
@@ -19,7 +19,7 @@ def visual(sg, conn, c, budget_wc, visual_wc):
         elif event == 'Show':
             show(sg, conn, c, plt, np, values)
 
-        if visual_wc.get_active_flag():
+        if visual_wc.getActiveFlag():
             visual_wc.update()
             
 

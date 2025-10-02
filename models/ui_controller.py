@@ -96,16 +96,18 @@ class TransactionWindow(WindowController):
         self.sheet = makeTransactionSheet(conn, c)
         colors = setTransactionRowColors(conn, c)
         self.window = createTransactionWindow(sg, self.sheet, colors)
-        total_funds = makeTotalFunds(conn, c)
+        total_funds, total_funds_2 = makeTotalFunds(conn, c)
         self.window['-Funds-'].update(total_funds)
+        self.window['-Funds 2-'].update(total_funds_2)
     
     def update(self, conn, c):
         self.window.BringToFront()
         self.sheet = makeTransactionSheet(conn, c)
         row_colors = setTransactionRowColors(conn, c)
         self.window['-Trans table-'].update(self.sheet, row_colors=row_colors)
-        total_funds = makeTotalFunds(conn, c)
+        total_funds, total_funds_2 = makeTotalFunds(conn, c)
         self.window['-Funds-'].update(total_funds)
+        self.window['-Funds 2-'].update(total_funds_2)
     
     def getValidateKeys(self):
         return self.__validate_keys

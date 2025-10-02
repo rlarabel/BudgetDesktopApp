@@ -3,14 +3,35 @@ from datetime import datetime
 
 def createTransactionWindow(sg, table, transaction_row_colors):
     visible_columns = [False, True, True, True, True, True, True]
-    layout = [[sg.Text('Transaction Window', justification='center', font='Any 15', size=(44, 1))],
-              [sg.Text('Liquid Possessions:'), sg.Text(size=(15, 1), key='-Funds-'),
-               sg.Button('New Transaction', pad=((150, 1), (1, 1)))],
-              [sg.Table(table, key='-Trans table-',
-                        headings=['ID', 'Date', 'Account', 'Category', 'Payee',
-                                  'Description', 'total'], enable_events=True,
-                        visible_column_map=visible_columns, row_colors=transaction_row_colors)],
-              [sg.Button('Back To Accounts', button_color='grey')]]
+    layout = [
+        [
+            sg.Text('Transactions', justification='center', font='Any 15', size=(97, 1))
+        ],
+        [
+            sg.Text('Total:'), 
+            sg.Text(size=(15, 1), key='-Funds-'),
+            sg.Text('Total w/o Savings:'), 
+            sg.Text(size=(15, 1), key='-Funds 2-'),
+            sg.Button('New Transaction', pad=((550, 1), (1, 1)))
+        ],
+        [
+            sg.Table(
+                table, 
+                key='-Trans table-',     
+                headings=['ID', 'Date', 'Account', 'Category', 'Payee', 'Description', 'total'], 
+                enable_events=True,
+                auto_size_columns=False, 
+                col_widths=[0, 10, 15, 20, 20, 40, 15],
+                num_rows=20,
+                font='Any 11',  
+                visible_column_map=visible_columns,
+                row_colors=transaction_row_colors
+            )
+        ],
+        [
+            sg.Button('Back To Accounts', button_color='grey')
+        ]
+    ]
 
     window = sg.Window('Transaction Window', layout, finalize=True)
 

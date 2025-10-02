@@ -1,13 +1,45 @@
 from datetime import datetime
 import csv
 
+
+# Grand total is all money available in income, bills, spending, and savings account
+# Grand total 2 is the same thing minus the savings
 def makeTotalFunds(conn, cursor):
     grand_total = 0
-    with conn:    
-        cursor.execute("SELECT total FROM transactions")
-        for temp in cursor.fetchall():
-           grand_total += temp[0]
-    return round(grand_total, 2)
+    grand_total_2 = 0
+    with conn:
+        # Get total for income, bills, and spending from transactions db
+        cursor.execute("SELECT total, account FROM transactions")
+        for total, account in cursor.fetchall():
+            cursor.execute("SELECT type FROM accounts WHERE name=:name", {'name': account})
+            account_type = cursor.fetchone()
+            account_type = account_type[0]
+            if account_type in ['income','bills','spending']:
+               grand_total += total
+               grand_total_2 += total
+        
+        # get total for savings from track savings db
+        cursor.execute("SELECT name FROM accounts WHERE type='savings'")
+        saving_accounts = cursor.fetchall()
+        for saving_account in saving_accounts:
+            if saving_account:
+                saving_account = saving_account[0]
+                cursor.execute("""
+                            SELECT amount 
+                            FROM track_savings 
+                            WHERE account=:account
+                            ORDER BY date DESC
+                            """,
+                            {'account': saving_account}
+                )
+                savings_total = cursor.fetchone()
+                if savings_total:
+                    grand_total += savings_total[0]
+
+        grand_total = round(grand_total, 2)
+        grand_total_2 = round(grand_total_2, 2)
+
+    return grand_total, grand_total_2
 
 def makeCategoryMenu(conn, cursor, account, edit_flag=False):
     with conn:

@@ -85,7 +85,7 @@ def edit_transaction(sg, conn, c, transaction_wc):
         if event == 'Save':
             set_transaction = True
 
-            for validate in transaction_wc.keysToValidate():
+            for validate in transaction_wc.getValidateKeys():
                 if not values[validate]:
                     set_transaction = False
 

@@ -1,32 +1,5 @@
 from datetime import datetime
 
-def updateFunds(conn, cursor):
-    with conn:
-        cursor.execute("SELECT * FROM money_flow")
-        gross_funds = 0
-        available_budget = 0
-        for a_transaction in cursor.fetchall():
-            if datetime.strptime(a_transaction[1], '%Y-%m-%d') < datetime.now():
-                if a_transaction[5] == 'in':
-                    gross_funds += a_transaction[4]
-                    available_budget += a_transaction[4]
-                elif a_transaction[5] == 'out':
-                    gross_funds -= a_transaction[4]
-
-        cursor.execute("SELECT * FROM track_categories")
-        for budgeted_money in cursor.fetchall():
-            available_budget -= budgeted_money[1]
-
-        update_row = {
-            'id': 1,
-            'funds': gross_funds,
-            'budget': available_budget
-        }
-        cursor.execute("""UPDATE income SET funds =:funds, budget=:budget WHERE id=:id""", update_row)
-        conn.commit()
-
-        return round(available_budget, 2), round(gross_funds, 2)
-
 
 def updateCategoryBudget(conn, cursor, row):
     with conn:
