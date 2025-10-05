@@ -41,6 +41,43 @@ def makeTotalFunds(conn, cursor):
 
     return grand_total, grand_total_2
 
+
+def makeGoldenRatio(conn, cursor):
+    total_income = 0
+    needs_income = 0
+    wants_income = 0
+    savings_income = 0
+    with conn:
+        cursor.execute("SELECT total, account FROM transactions WHERE total>0 OR notes='TRANSFER'")
+        log = cursor.fetchall()
+        for total, account in log:
+            total_income += total
+            
+            cursor.execute("SELECT type FROM accounts WHERE name=:name", {'name': account})
+            account_type = cursor.fetchone()
+            if account_type:
+                account_type = account_type[0]
+            
+            if account_type == 'bills':
+                needs_income += total
+            elif account_type == 'spending':
+                wants_income += total
+            elif account_type == 'savings':
+                savings_income += total
+    if total_income > 0:
+        needs_percentage = str(round(needs_income / total_income * 100, 1)) + '%'
+        wants_percentage = str(round(wants_income / total_income * 100, 1)) + '%'
+        savings_percentage = str(round(savings_income / total_income * 100, 1)) + '%'
+    else:
+        needs_percentage = '0%'
+        wants_percentage = '0%'
+        savings_percentage = '0%'
+    
+    r_str = needs_percentage + '/' + wants_percentage + '/' + savings_percentage
+    
+    return r_str 
+
+
 def makeCategoryMenu(conn, cursor, account, edit_flag=False):
     with conn:
         cursor.execute("SELECT name FROM categories WHERE account=:account", {'account': account})

@@ -1,4 +1,4 @@
-from logic.create_items import makeTotalFunds
+from logic.create_items import makeTotalFunds, makeGoldenRatio
 from logic.sheets.budget import makeBudgetSheet, setRowColors
 from logic.sheets.transactions import makeTransactionSheet, setTransactionRowColors
 from logic.sheets.investments import  makeSavingsSheet, makeAssetSheet, makeLoanSheet 
@@ -55,6 +55,8 @@ class BudgetWindow(WindowController):
         colors = setRowColors(conn, c, unallocated_cash_info)
         layout = createBudgetWin(sg, menu_def, pov, self.sheet, colors)
         self.window = sg.Window('Rat Trap - Money Tracker', layout, finalize=True, resizable=True)
+        golden_ratio = makeGoldenRatio(conn, c)
+        self.window['-GOLDEN RATIO-'].update(golden_ratio)
         self.window['View date'].update(pov.prettyViewDate())
     
     def update(self, conn, c, pov):

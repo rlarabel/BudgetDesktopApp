@@ -1,11 +1,12 @@
 def createBudgetWin(sg, menu_def, pov, budget_sheet, colors):
-    # TODO: Add a dynamic 50/40/10 sg.Text
     visible_columns = [False, True, True, True, True, True, True] 
     layout = [
         [sg.Menu(menu_def, key='-MENU-')],
         [sg.Text('Budget', justification='center', size=(85, 1), font='Any 15')],
         [
-            sg.Text(size=(55, 1), key='View date', font='Any 11'),
+            sg.Text(size=(30, 1), key='View date', font='Any 11'),
+            sg.Text('Golden Ratio:', font='Any 11'),
+            sg.Text(size=(18, 1), key='-GOLDEN RATIO-', font='Any 11'),
             sg.Combo(values=pov.getYearCombo(), k='-Year-', enable_events=True, pad=((350, 1), (1, 1)), bind_return_key=True),
             sg.Combo(values=pov.getAllMonths(), readonly=True, k='-Month-', enable_events=True)
         ],
