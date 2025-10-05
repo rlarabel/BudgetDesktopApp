@@ -13,6 +13,7 @@ def makeBudgetSheet(conn, cursor, pov):
         table = []
         unallocated_cash_info = []
         flagged_date = None
+        total_budget = 0
         
         # Loop through all accounts 
         cursor.execute("""
@@ -46,7 +47,7 @@ def makeBudgetSheet(conn, cursor, pov):
                 over_allocated_flag = False
                 category_id = category[0]
                 category_name = category[1]
-                if pov.getScope() == 'past':
+                if pov.getScope() == 'past' or category[3] < 0.01:
                     pre_set = '-'
                 else:
                     pre_set = '$' + str(round(category[3], 2))
@@ -59,13 +60,15 @@ def makeBudgetSheet(conn, cursor, pov):
                     else:
                         budget_flag = False
                     spent, budget, budget_left = getMonthlyCategoryData(cursor, pov, category_id, account[0])
+                    total_budget += budget
                     
                     spent = '$' + str(round(spent, 2))
                     budget = '$' + str(round(budget, 2))
+                    
                     if type(budget_left) != str:
                         budget_left = str(round(budget_left, 2)) + '%'
 
-                    table.append([category_id, category_name, pre_set, budget, spent, '', budget_left])
+                    table.append([category_id, category_name, pre_set, budget, spent, 'percent budget', budget_left])
                     
                 else:
                     available = getAvailable(cursor, category_id, account[0])  
@@ -99,6 +102,16 @@ def makeBudgetSheet(conn, cursor, pov):
 
         if not table:
             table = [['','', '', '', '', '', '']]
+        else:
+            # go back and edit table to include percent of budget
+            for row in table:
+                if row[5] == 'percent budget':
+                    temp_budget = float(row[3][1:])
+                    if total_budget > 0 and temp_budget > 0:
+                        percent_budget = temp_budget / total_budget * 100
+                        row[5] = str(round(percent_budget, 1)) + '%'
+                    else:
+                        row[5] = '-'
         
         return table, unallocated_cash_info
 
@@ -110,8 +123,6 @@ def getMonthlyCategoryData(cursor, pov, category_id, account):
     spent = getSpendings(cursor, pov, category_id, account)
     budget = getBudget(cursor, pov, category_id, account)
     budget_left = getBudgetLeft(spent, budget)
-
-
     
     return spent, budget, budget_left
 

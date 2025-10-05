@@ -14,7 +14,7 @@ def createBudgetWin(sg, menu_def, pov, budget_sheet, colors):
                 budget_sheet, 
                 key='-Table-', 
                 auto_size_columns=False,      
-                headings=['Category ID', 'Name', 'Pre-Set', 'Budget', 'Spent', '% of Income', 'Budget Left'],
+                headings=['Category ID', 'Name', 'Pre-Set', 'Budget', 'Spent', '% of Total Budget', 'Budget Left'],
                 row_colors=colors, 
                 enable_events=True, 
                 justification='left',
