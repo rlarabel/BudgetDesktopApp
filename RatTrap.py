@@ -35,8 +35,8 @@ def main():
         if not event:
             break
 
-        elif event in ('Add Account', 'Add Category'):
-            menu_event(sg, conn, c, event)
+        elif event in ('Add Account', 'Add Category', 'Show Archived'):
+            menu_event(sg, conn, c, event, budget_wc)
 
         elif event in ('-Year-', '-Month-'):
             pov.changeViewDate(budget_wc.getValues())

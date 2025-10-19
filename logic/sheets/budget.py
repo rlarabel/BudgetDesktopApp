@@ -7,7 +7,7 @@ from dateutil import relativedelta
 # Outputs: table - A 2D list with each inside table having 7 elements (id, name, monthly budget, upcoming monthly expenses, monthly spending, monthly progress, total [available]),
 #			unallocated_cash_info - a list of dictionary for all the accounts that contains different flags (over allocated, under allocated, uncategorized spending) for the program to warn the user
 #           about 
-def makeBudgetSheet(conn, cursor, pov):
+def makeBudgetSheet(conn, cursor, pov, show_archived):
     with conn:
         # Initialize variables
         table = []
@@ -19,11 +19,11 @@ def makeBudgetSheet(conn, cursor, pov):
         cursor.execute("""
                        SELECT * 
                        FROM accounts 
-                       WHERE type=:spending OR type=:bills OR type=:income
+                       WHERE (type=:spending OR type=:bills OR type=:income) AND (archive=:archive OR archive=:show)
                        ORDER BY CASE WHEN type=:income THEN 1
                        ELSE 2 END
                        """, 
-                       {'spending': 'spending', 'bills': 'bills', 'income': 'income'}
+                       {'spending': 'spending', 'bills': 'bills', 'income': 'income', 'archive': 'False', 'show': show_archived}
         )
         for account in cursor.fetchall():
             uncat_spending_flag = False
@@ -40,7 +40,13 @@ def makeBudgetSheet(conn, cursor, pov):
             table.append(['',account[0], '', '', '', 'Account Total:', '$' + str(round(account_total, 2))])
             
             # Loop through all categories
-            cursor.execute("SELECT * FROM categories WHERE account=:name", {'name': account[0]})
+            cursor.execute("""
+                           SELECT * 
+                           FROM categories 
+                           WHERE account=:name AND (archive='False' OR archive=:show)
+                           """, 
+                           {'name': account[0], 'show': show_archived}
+            )
             all_categories = cursor.fetchall()      
             for category in all_categories:
                 under_allocated_flag = False
@@ -203,7 +209,7 @@ def getAvailable(cursor, id, account):
     
     return total 
 
-def setRowColors(conn, cursor, unallocated_cash_info):
+def setRowColors(conn, cursor, unallocated_cash_info, show_archived):
     with conn:
         account_color = []
         i = 0
@@ -211,11 +217,11 @@ def setRowColors(conn, cursor, unallocated_cash_info):
         cursor.execute("""
                         SELECT * 
                         FROM accounts 
-                        WHERE type=:spending OR type=:bills OR type=:income 
+                        WHERE (type=:spending OR type=:bills OR type=:income) AND (archive='False' OR archive=:show) 
                         ORDER BY CASE WHEN type=:income THEN 1
                         ELSE 2 END
                        """, 
-                    {'spending': 'spending', 'bills': 'bills', 'income': 'income'}
+                    {'spending': 'spending', 'bills': 'bills', 'income': 'income', 'show': show_archived}
         )
         for account in cursor.fetchall():
             # Check if the account has any flags, if so store the flags in color_info and update the row color
@@ -227,17 +233,27 @@ def setRowColors(conn, cursor, unallocated_cash_info):
                else:
                    j += 1
             # If user bugets more many than in the account turn the account row red
-            if color_info['over allocated']:
+            if color_info and color_info['over allocated']:
                 account_color.append((i, 'navy blue', 'red'))
+            elif account[2] == 'True':
+                account_color.append((i, 'white', 'black'))
             else:
                 account_color.append((i, 'navy blue', 'grey'))
             i += 1
 
             # Alternate between slightly different row colors
-            cursor.execute("SELECT name FROM categories WHERE account=:name", {'name': account[0]})
+            cursor.execute("""
+                           SELECT name, archive 
+                           FROM categories 
+                           WHERE account=:name AND (archive='False' OR archive=:show)
+                           """, 
+                           {'name': account[0], 'show': show_archived}
+            )
             for cat in cursor.fetchall():
                 if cat[0] != 'Unallocated Cash':
-                    if(i % 2 == 0):
+                    if cat[1] == 'True':
+                        account_color.append((i, 'white', "#000000"))
+                    elif(i % 2 == 0):
                         account_color.append((i, 'white', '#7f8f9f'))
                     i += 1
             if account[1] == 'income':
@@ -247,14 +263,15 @@ def setRowColors(conn, cursor, unallocated_cash_info):
                 # Turn the available cash row red if:
                 # The user bugets more many than in the account
                 # User spend money without categorizing it
-                # User doesn't budget enough in a previous month 
-                if color_info['over allocated'] or color_info['uncategorized spending'] or color_info['insufficient budget']:
-                    account_color.append((i-2, 'navy blue', 'red'))
-                elif color_info['under allocated']:
-                    account_color.append((i-2, 'navy blue', 'yellow'))
-                else:
-                    account_color.append((i-2, 'navy blue', 'green'))
-         
+                # User doesn't budget enough in a previous month
+                if color_info:
+                    if color_info['over allocated'] or color_info['uncategorized spending'] or color_info['insufficient budget']:
+                        account_color.append((i-2, 'navy blue', 'red'))
+                    elif color_info['under allocated']:
+                        account_color.append((i-2, 'navy blue', 'yellow'))
+                    else:
+                        account_color.append((i-2, 'navy blue', 'green'))
+                
         return account_color
 
 # Check the previous months of each category for the desired account

@@ -108,6 +108,21 @@ def edit_account(sg, conn, c, account_row, account_menu, row_name):
         sg.popup(f"{row_name} changed from a {account_row[1]} to {edit_values['-Edit type-']} account")
     elif edit_values == 'Update':
         sg.popup("Was unable to update any information")
+    elif edit_event == 'Archive':
+        choice = sg.popup_yes_no("Are you sure you want to (un)archive this account?")
+        if choice == 'Yes':
+            c.execute("SELECT archive FROM accounts WHERE name=:name", {'name': row_name})
+            archive = c.fetchone()
+            if archive and archive[0] == 'True':
+                archive = 'False'
+            else:
+                archive = 'True'
+            c.execute("Update accounts SET archive=:archive WHERE name=:name", {'name': row_name, 'archive': archive})
+            conn.commit()
+            if archive == 'True':
+                sg.popup("Account Archived")
+            else:
+                sg.popup("Account Unarchived")
 
 
 def allocate(sg, conn, c, sel_account, sel_category, category_id, values, pov):
@@ -183,3 +198,18 @@ def edit_category(sg, conn, c, sel_account, category_id, category_row, row_name)
                             {'id': category_id, 'pre_set': new_preset_budget})
             conn.commit()
             sg.popup(f'{row_name} category pre-set budget was changed to {new_preset_budget}')
+    elif edit_event == 'Archive':
+        choice = sg.popup_yes_no("Are you sure you want to (un)archive this category?")
+        if choice == 'Yes':
+            c.execute("SELECT archive FROM categories WHERE id=:id", {'id': category_id})
+            archive = c.fetchone()
+            if archive and archive[0] == 'True':
+                archive = 'False'
+            else:
+                archive = 'True'
+            c.execute("Update categories SET archive=:archive WHERE id=:id", {'id': category_id, 'archive': archive})
+            conn.commit()
+            if archive == 'True':
+                sg.popup("Category Archived")
+            else:
+                sg.popup("Category Unarchived")

@@ -63,6 +63,7 @@ def makeCategoriesDb(conn, cursor):
                     name TEXT ,
                     account TEXT,
                     pre_set REAL,
+                    archive TEXT,
                     FOREIGN KEY(account) REFERENCES accounts(name)
                         ON UPDATE CASCADE
                     )""")

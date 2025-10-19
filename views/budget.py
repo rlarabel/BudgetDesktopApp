@@ -52,6 +52,7 @@ def editAccountWin(sg, account_info, menu):
             ],
             [
                 sg.Button('Update'),
+                sg.Button('Archive'),
                 sg.Button('Exit')
             ]
         ]
@@ -73,6 +74,7 @@ def editCategoryWin(sg, category_info, menu):
                               default_value=category_info[1])],
                     [
                         sg.Button('Update'),
+                        sg.Button('Archive'),
                         sg.Button('Exit')
                     ]
                 ]

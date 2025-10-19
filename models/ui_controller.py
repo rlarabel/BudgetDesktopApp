@@ -45,14 +45,16 @@ class WindowController:
 class BudgetWindow(WindowController):
     def __init__(self):
         super().__init__()
+        self.show_archived = 'False'
 
     def create(self, sg, conn, c, pov):
         menu_def = [
             ['&New', ['Add Account', 'Add Category']],
-            ['&Views', ['&Transactions', 'Savings', 'Loans\\Assets', 'Visualize']]
+            ['&Views', ['&Transactions', 'Savings', 'Loans\\Assets', 'Visualize']],
+            ['Settings',['&Show Archived']]
         ]
-        self.sheet, unallocated_cash_info = makeBudgetSheet(conn, c, pov)
-        colors = setRowColors(conn, c, unallocated_cash_info)
+        self.sheet, unallocated_cash_info = makeBudgetSheet(conn, c, pov, self.show_archived)
+        colors = setRowColors(conn, c, unallocated_cash_info, self.show_archived)
         layout = createBudgetWin(sg, menu_def, pov, self.sheet, colors)
         self.window = sg.Window('Rat Trap - Money Tracker', layout, finalize=True, resizable=True)
         golden_ratio = makeGoldenRatio(conn, c)
@@ -62,8 +64,8 @@ class BudgetWindow(WindowController):
     def update(self, conn, c, pov):
         self.window.BringToFront()
         self.window['View date'].update(pov.prettyViewDate()) 
-        self.sheet, unallocated_cash_info = makeBudgetSheet(conn, c, pov)
-        colors = setRowColors(conn, c, unallocated_cash_info)
+        self.sheet, unallocated_cash_info = makeBudgetSheet(conn, c, pov, self.show_archived)
+        colors = setRowColors(conn, c, unallocated_cash_info, self.show_archived)
         self.window['-Table-'].update(self.sheet, row_colors=colors)
     
     def hide(self):
@@ -87,6 +89,12 @@ class BudgetWindow(WindowController):
             row = self.sheet[row_int]
             category_id = row[0]
         return category_id
+
+    def toggleArchive(self):
+        if self.show_archived == 'False':
+            self.show_archived = 'True'
+        else:
+            self.show_archived = 'False'
         
 
 class TransactionWindow(WindowController):

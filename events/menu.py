@@ -2,12 +2,14 @@ from logic.create_items import addNewAccount, addNewCategory, makeAccountMenu
 from views.menu import createAccountWin, createSavingsWin, createAssetWin, createLoanWin, createCategoryWin
 
 
-def menu(sg, conn, c, event):
+def menu(sg, conn, c, event, budget_wc):
     if event == 'Add Account':
         addAccount(sg, conn, c)
     elif event == 'Add Category':
         account_menu = makeAccountMenu(conn, c, ['spending', 'bills'])
         addCategory(sg, conn, c, account_menu)
+    elif event == 'Show Archived':
+        showArchived(budget_wc)
 
 
 def addAccount(sg, conn, c):
@@ -71,3 +73,6 @@ def addCategory(sg, conn, c, account_menu):
             sg.popup(f'There is already an existing {create_cat}')
         elif not create_cat or not values['-Account name-']:
             sg.popup(f'There is missing info needed to open a category')
+
+def showArchived(budget_wc):
+    budget_wc.toggleArchive()

@@ -114,17 +114,19 @@ def addNewAccount(conn, cursor, data):
         new_row_acc = {
             'name': data[0],
             'type': data[1],
+            'archive': 'False'
         }
         
         new_row_cat = {
             'id': None,
             'name': 'Unallocated Cash',
-            'account': data[0]
+            'account': data[0],
+            'archive': 'False'
         }
         if error_flag == 1:
-            cursor.execute("INSERT INTO accounts VALUES (:name, :type)", new_row_acc)
+            cursor.execute("INSERT INTO accounts VALUES (:name, :type, :archive)", new_row_acc)
             if new_row_acc['type'] == 'spending' or new_row_acc['type'] == 'bills':
-                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0)", new_row_cat)
+                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0, :archive)", new_row_cat)
 
             elif new_row_acc['type'] == 'savings':
                 # Check User Input
@@ -162,12 +164,12 @@ def addNewAccount(conn, cursor, data):
                 }
                 
                 # Insert basic info into savings
-                cursor.execute("INSERT INTO savings VALUES (:name, :state ,:interest)", savings_info_entry)
+                cursor.execute("INSERT INTO savings VALUES (:name, :state, :interest)", savings_info_entry)
                 cursor.execute("INSERT INTO track_savings VALUES (:id, :name, :date, :amount)", track_savings_info_entry)
                 # Get an unused category ID and create a category
                 cursor.execute("SELECT id FROM categories ORDER BY ID DESC")
                 category_id = cursor.fetchone()[0] + 1
-                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0)", 
+                cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0, 'False')", 
                             {'id': category_id, 'name': 'Not Available', 'account': data[0]})
                 # Insert initial deposit into transaction
                 cursor.execute("""INSERT INTO transactions VALUES 
@@ -192,16 +194,6 @@ def addNewAccount(conn, cursor, data):
                             (:name, :state, :date, :trans_amt, :none, :none, :trans_amt, 
                             :none, :none, :none, :none, :trans_amt, :none, :none )""", 
                             {'name': data[0], 'state': 'ACTIVE', 'none': None, 'trans_amt': trans_amt, 'date': date})
-                # # Get an unused category ID and create a category
-                # cursor.execute("SELECT id FROM categories ORDER BY ID DESC")
-                # category_id = cursor.fetchone()[0] + 1
-                # cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", 
-                #             {'id': category_id, 'name': 'Not Available', 'account': data[0]})
-                # # Insert initial purchase amount into transaction
-                # cursor.execute("""INSERT INTO transactions VALUES 
-                #                     (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                #                 {'id': None, 'date': date, 'payee': None, 'notes': 'Initial Purchase',
-                #                     'total': trans_amt, 'account': data[0], 'category_id': category_id})
                 
             elif new_row_acc['type'] == 'loan':
                 #check user input
@@ -220,14 +212,7 @@ def addNewAccount(conn, cursor, data):
                 cursor.execute("INSERT INTO loans VALUES (:name, :state, :interest, :start_date, :end_date, :loan_amt, :loan_amt)", 
                                {'name': new_row_acc['name'], 'state': 'ACTIVE', 'interest': interest, 
                                 'start_date': start_date,'end_date': end_date, 'loan_amt': loan_amt})
-                # cursor.execute("SELECT id FROM categories ORDER BY ID DESC")
-                # category_id = cursor.fetchone()[0] + 1
-                # cursor.execute("INSERT INTO categories VALUES (:id, :name, :account)", 
-                #             {'id': category_id, 'name': 'Not Available', 'account': data[0]})
-                # cursor.execute("""INSERT INTO transactions VALUES 
-                #                     (:id, :date, :payee, :notes, :total, :account, :category_id)""",
-                #                 {'id': None, 'date': start_date, 'payee': None, 'notes': 'Initial Loan',
-                #                     'total': loan_amt, 'account': data[0], 'category_id': category_id})
+
             else:
                 error_flag = -1
         if error_flag == 1:
@@ -255,7 +240,7 @@ def addNewCategory(conn, cursor, data, category_id=None):
             'name': data['-New category-'],
             'account': parent_account[0]
         }
-        cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0)", new_row)
+        cursor.execute("INSERT INTO categories VALUES (:id, :name, :account, 0, 'False')", new_row)
         conn.commit()
 
 
