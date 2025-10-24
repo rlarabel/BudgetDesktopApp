@@ -278,8 +278,12 @@ def addTransaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=T
             # Outcome Transaction
             if user_total < 0:
                 # Selecting desired category_id
+                if data['-Selected Category-']:
+                    category_name = data['-Selected Category-']
+                else:
+                    category_name = 'Unallocated Cash'
                 cursor.execute("SELECT id FROM categories WHERE name=:name AND account=:account", 
-                               {'name': data['-Selected Category-'], 'account': sel_account})
+                               {'name': category_name, 'account': sel_account})
                 category_id = cursor.fetchone()
                 if category_id:
                     category_id = category_id[0]

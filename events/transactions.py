@@ -43,14 +43,16 @@ def new_transaction(sg, conn, c, keys_to_validate):
             latest_date = latest_date.strftime('%m-%d-%Y')
         event, values = createNewTransaction(sg, category_menu, latest_date).read(close=True)
         if event == 'Save':
-            #TODO: validate like csv entry
             set_transaction = True
             for validate in keys_to_validate:
                 if not values[validate]:
                     set_transaction = False
             if set_transaction:
                 user_date = values['-Date-']
-                addTransaction(conn, c, values, selected_account)
+                error_flag = addTransaction(conn, c, values, selected_account)
+            else:
+                error_flag = 0
+            if error_flag > 0:
                 sg.popup(f"New transaction for {user_date}")
             else:
                 sg.popup('Missing info: unable to add the transaction')
