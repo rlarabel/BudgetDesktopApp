@@ -19,6 +19,8 @@ def transaction(sg, conn, c, budget_wc, transaction_wc):
             new_transaction(sg, conn, c, transaction_wc.getValidateKeys())
         elif event == '-Trans table-':
             edit_transaction(sg, conn, c, transaction_wc)
+        elif event == 'Manage Transfers':
+            transaction_wc.toggleTransferManager()
 
         if transaction_wc.getActiveFlag():
             transaction_wc.update(conn, c)

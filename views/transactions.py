@@ -1,9 +1,10 @@
 from datetime import datetime
 
 
-def createTransactionWindow(sg, table, transaction_row_colors):
+def createTransactionWindow(sg, table, transaction_row_colors, menu_def):
     visible_columns = [False, True, True, True, True, True, True]
     layout = [
+        [sg.Menu(menu_def, key='-MENU-')],
         [
             sg.Text('Transactions', justification='center', font='Any 15', size=(97, 1))
         ],

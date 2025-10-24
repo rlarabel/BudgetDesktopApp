@@ -1,6 +1,6 @@
 from logic.create_items import makeTotalFunds, makeGoldenRatio
 from logic.sheets.budget import makeBudgetSheet, setRowColors
-from logic.sheets.transactions import makeTransactionSheet, setTransactionRowColors
+from logic.sheets.transactions import makeTransactionSheet, setTransactionRowColors, makeTransferSheet
 from logic.sheets.investments import  makeSavingsSheet, makeAssetSheet, makeLoanSheet 
 from views.budget import createBudgetWin
 from views.investments import createLoansAssetsWindow, createSavingsWindow
@@ -100,20 +100,28 @@ class BudgetWindow(WindowController):
 class TransactionWindow(WindowController):
     def __init__(self):
         self.__validate_keys = ['-Date-', '-Trans total-']
+        self.transfer_manager = False
         super().__init__()
    
     def create(self, sg, conn, c):
+        menu_def = [
+            ['Settings', ['Manage Transfers',]],
+        ]
         self.sheet = makeTransactionSheet(conn, c)
         colors = setTransactionRowColors(conn, c)
-        self.window = createTransactionWindow(sg, self.sheet, colors)
+        self.window = createTransactionWindow(sg, self.sheet, colors, menu_def)
         total_funds, total_funds_2 = makeTotalFunds(conn, c)
         self.window['-Funds-'].update(total_funds)
         self.window['-Funds 2-'].update(total_funds_2)
     
     def update(self, conn, c):
         self.window.BringToFront()
-        self.sheet = makeTransactionSheet(conn, c)
-        row_colors = setTransactionRowColors(conn, c)
+        if self.transfer_manager:
+            self.sheet, row_colors = makeTransferSheet(conn, c)
+            
+        else:
+            self.sheet = makeTransactionSheet(conn, c)
+            row_colors = setTransactionRowColors(conn, c)
         self.window['-Trans table-'].update(self.sheet, row_colors=row_colors)
         total_funds, total_funds_2 = makeTotalFunds(conn, c)
         self.window['-Funds-'].update(total_funds)
@@ -128,6 +136,12 @@ class TransactionWindow(WindowController):
             trans_id = self.sheet[row_int][0]
             account = self.sheet[row_int][2]
             return trans_id, account
+    
+    def toggleTransferManager(self):
+        if self.transfer_manager:
+            self.transfer_manager = False
+        else:
+            self.transfer_manager = True
 
 
 class SavingsWindow(WindowController):
