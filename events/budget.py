@@ -1,3 +1,4 @@
+from dateutil import relativedelta
 from logic.create_items import makeAccountMenu, makeCategoryMenu
 from logic.delete_items import deleteAccount, deleteCategory
 from logic.update_items import updateCategoryBudget
@@ -136,7 +137,6 @@ def allocate(sg, conn, c, sel_account, sel_category, category_id, values, pov):
         except ValueError:
             move_funds = 0
 
-        # TODO: Move this whole section into update_category_budget 
         with conn:
             # Checking for entry for a certain category and month, if not add one          
             c.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND date=:date",
@@ -150,20 +150,69 @@ def allocate(sg, conn, c, sel_account, sel_category, category_id, values, pov):
             # Selects an account and category
             c.execute("SELECT * FROM track_categories WHERE category_id=:category_id AND date=:date",
                 {'category_id': category_id, 'date': track_date})
-            tracking_funds = c.fetchone()
+            budget = c.fetchone()
             # moves funds from 'Available Cash' to desired category
             move_flag = True 
-            if tracking_funds:
-                tracking_funds = list(tracking_funds)
-                tracking_funds[2] += move_funds 
+            if budget:
+                budget = list(budget)
+                budget[2] += move_funds 
+                # Handles when the user tries to make budget less than 0
+                if budget[2] < 0 and pov.getScope() != 'future':
+                    move_flag = False
+                elif budget[2] < 0 and pov.getScope() == 'future':
+                    move_flag = reallocate(conn, c, pov, category_id, move_funds)
+                else:
+                    updateCategoryBudget(conn, c, budget)
             else:
                 move_flag = False
 
             if move_flag:
-                updateCategoryBudget(conn, c, tracking_funds)
                 sg.popup(f'Successful\n{sel_category} + {move_funds} ')
             else:
                 sg.popup(f'Unsuccessful transfer')
+
+
+def reallocate(conn, c, pov, category_id, move_funds):
+    # Start Date
+    date = pov.getViewDate().date()
+    date_str = date.strftime('%Y-%m-%d')
+    move_flag = True
+    # Loop present to view date month
+    while move_funds != 0 and move_flag and date >= pov.getThisMonth().date():
+        c.execute("""SELECT * 
+                  FROM track_categories 
+                  WHERE date=:date AND category_id=:category_id
+                  """, 
+                  {'date': date_str, 'category_id': category_id}
+        )
+        row = c.fetchone()
+        if row:
+            # TODO: Fix error of adding money in the budget of the wrong month 
+            # To instead subtract money from right month
+            row = list(row)
+            total = row[2]
+            if total >= -move_funds:
+                row[2] += move_funds
+                move_funds = 0
+            else:
+                row[2] = 0
+                move_funds += total
+            updateCategoryBudget(conn, c, row, False)
+        else:
+            move_flag = False
+       
+        # loop index
+        date = date - relativedelta.relativedelta(months=1)
+        date_str = date.strftime('%Y-%m-%d')
+    
+    # If there is still funds to move rollback changes 
+    if move_funds > 0.01 or move_funds < -0.01 or not move_flag:
+        conn.rollback()
+        move_flag = False
+    else:
+        conn.commit()
+    return move_flag
+
 
 
 def edit_category(sg, conn, c, sel_account, category_id, category_row, row_name):

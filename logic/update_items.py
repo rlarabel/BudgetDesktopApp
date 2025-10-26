@@ -1,7 +1,7 @@
 from datetime import datetime
 
 
-def updateCategoryBudget(conn, cursor, row):
+def updateCategoryBudget(conn, cursor, row, commit_flag=True):
     with conn:
         update_row = {
             'id': row[0],
@@ -9,7 +9,8 @@ def updateCategoryBudget(conn, cursor, row):
         }
         cursor.execute("""UPDATE track_categories SET total =:total
                                     WHERE id=:id""", update_row)
-        conn.commit()
+        if commit_flag:
+            conn.commit()
         
 
 def updateAccountTrack(conn, cursor, row):
