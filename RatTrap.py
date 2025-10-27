@@ -13,7 +13,7 @@ from events.visual import visual as visual_event
 
 def main():
     # Connecting to the Database
-    conn, c = initializeDb('linux')
+    conn, c = initializeDb('windows')
     pov = PovController()
     
     createDbTables(conn, c)

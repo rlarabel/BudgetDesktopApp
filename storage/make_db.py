@@ -75,7 +75,8 @@ def makeAccountsDb(conn, cursor):
     with conn:
         cursor.execute("""CREATE TABLE accounts (
                     name TEXT PRIMARY KEY,
-                    type TEXT NOT NULL
+                    type TEXT NOT NULL,
+                    archive TEXT
         )""")
 
         conn.commit()

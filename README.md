@@ -130,7 +130,10 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python RatTrap.py.py
 ```
-
+### Create executable file of RatTrap.py
+```bash
+pyinstaller -wF RatTrap.py
+```
 ### Data Storage
 Uses sqlite3 for persistent storage
 file location
