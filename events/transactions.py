@@ -27,7 +27,7 @@ def transaction(sg, conn, c, budget_wc, transaction_wc):
 
 def new_transaction(sg, conn, c, keys_to_validate):
     # Gets desired account info before the next window
-    trans_acc_menu = makeAccountMenu(conn, c, ['spending', 'bills', 'savings'])
+    trans_acc_menu = makeAccountMenu(conn, c, ['spending', 'bills', 'savings', 'income'])
     acc_event, acc_values = selectAccount(sg, trans_acc_menu).read(close=True)
     if acc_values:
         selected_account = acc_values['-Account menu-']

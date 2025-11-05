@@ -274,7 +274,7 @@ def addTransaction(conn, cursor, data, sel_account, trans_id=None, commit_flag=T
         
         cursor.execute("SELECT type FROM accounts WHERE name=:name", {"name":sel_account})
         account_type = cursor.fetchone()[0]
-        if account_type == "spending" or account_type == "bills":
+        if account_type in ["spending", "bills", "income"]:
             # Outcome Transaction
             if user_total < 0:
                 # Selecting desired category_id

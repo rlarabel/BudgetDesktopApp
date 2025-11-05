@@ -28,6 +28,7 @@ def updateAccountTrack(conn, cursor, row):
 def updateTransaction(conn, cursor, data, row_id, account_name):
     with conn:
         error_flag = 1
+        category_name = None
         user_date = data['-Date-']
         if user_date == None or data['-Trans total-'] == None:
             error_flag = -1
@@ -55,19 +56,19 @@ def updateTransaction(conn, cursor, data, row_id, account_name):
             account_type = cursor.fetchone()[0]
         except:
             error_flag = -4
-        if account_type == 'spending' or account_type == 'bills':
+        if account_type in ['spending', 'bills', 'income']:
             if user_total < 0:
-                error_flag = sqlTransUpdate(cursor, row_id, user_date, data, 
-                                            user_total, account_name, category_id, data['-Selected Category-'])
+                category_name = data['-Selected Category-']
             else:
-                error_flag = sqlTransUpdate(cursor, row_id, user_date, data, 
-                                            user_total, account_name, category_id, 'Unallocated Cash')
+                category_name =  'Unallocated Cash'
+        elif account_type == 'savings':
+            category_name = 'Not Available'
         else:
             error_flag = -5
         
-        if error_flag < 0:
-            conn.rollback()
-        else:
+        if error_flag == 1:
+            error_flag = sqlTransUpdate(cursor, row_id, user_date, data, 
+                                            user_total, account_name, category_id, category_name)
             conn.commit()
         
         return error_flag
